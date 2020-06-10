@@ -1,0 +1,140 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using XLua;
+
+public class UnitProperty_Lua
+{
+
+    //皮肤路径
+    public string skinName;
+    //皮肤
+    public GameObject skin;
+    //层级
+    public PanelLayer layer;
+    //面板参数
+    public object[] args;
+
+    private LuaTable scriptEnv;
+
+    private Action luaInit;
+    private Action luaOnShowing;
+    private Action luaOnShowed;
+    private Action luaOnClosing;
+    private Action luaOnClosed;
+    private Action luaUpdate;
+    private Action luaBindView;
+
+	public virtual void InitLua(TextAsset luaScript)
+    {
+        
+        if(luaScript == null)
+        {
+            return;
+        }
+        scriptEnv = GameMain.luaEnv.NewTable();
+
+        LuaTable meta = GameMain.luaEnv.NewTable();
+        meta.Set("__index", GameMain.luaEnv.Global);
+        scriptEnv.SetMetaTable(meta);
+        meta.Dispose();
+
+        scriptEnv.Set("self", this);
+
+        
+
+        GameMain.luaEnv.DoString(luaScript.text, "LuaTestScript", scriptEnv);
+
+        
+        scriptEnv.Get("init", out luaInit);
+        scriptEnv.Get("onShowing", out luaOnShowing);
+        scriptEnv.Get("onShowed", out luaOnShowed);
+        scriptEnv.Get("onClosing", out luaOnClosing);
+        scriptEnv.Get("onClosed", out luaOnClosed);
+        scriptEnv.Get("update", out luaUpdate);
+        scriptEnv.Get("bindView", out luaBindView);
+    }
+	
+	
+	
+	
+	
+    #region 生命周期
+    //初始化
+    public virtual void Init(params object[] args)
+    {
+        this.args = args;
+        if(luaInit != null)
+        {
+            luaInit();
+        }
+    }
+
+
+    
+
+
+    public virtual void BindView()
+    {
+        if (luaBindView != null)
+        {
+            luaBindView();
+        }
+    }
+
+    //开始面板前
+
+    public virtual void Tick(float dTime)
+    {
+
+    }
+
+    public virtual void OnShowing() {
+        if (luaOnShowing != null)
+        {
+            luaOnShowing();
+        }
+    }
+    //显示面板后
+    public virtual void OnShowed() {
+        if(luaOnShowed != null)
+        {
+            luaOnShowed();
+        }
+    }
+    //帧更新
+    public virtual void Update() {
+        if(luaUpdate != null)
+        {
+            luaUpdate();
+        }
+    }
+    //关闭前
+    public virtual void OnClosing() {
+        if(luaOnClosing != null)
+        {
+            luaOnClosing();
+        }
+    }
+    //关闭后
+    public virtual void OnClosed() {
+        if(luaOnClosed != null)
+        {
+            luaOnClosed();
+        }
+    }
+    #endregion
+
+
+
+
+
+    #region 操作
+    public virtual void Close()
+    {
+        string name = skinName;
+        GameMain.GetInstance().panelMgr.ClosePanel(name);
+    }
+    #endregion
+}
