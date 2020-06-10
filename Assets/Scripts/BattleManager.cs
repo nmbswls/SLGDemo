@@ -1,122 +1,378 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class BattleManager : MonoBehaviour
 {
-    public delegate void EffectCallback(EffectNode ctx);
+    //public delegate void EffectCallback(EffectNode ctx);
+
+    public Grid grid1;
+    private Camera mCamera;
+
+
+    public GameObject pawn;
+    private Vector2Int nowPawnPos;
+
+    private int NowRound = 0;
+
+    public static BattleManager Instance;
+
+    public List<FakeActor> fakeActors = new List<FakeActor>();
+    public class FakeActor 
+    {
+        public int id;
+        public int speed;
+    }
+
+
     // Start is called before the first frame update
     void Start()
     {
-        
+        if(Instance == null)
+        {
+            Instance = this;
+        }
+
+        mCamera = Camera.main;
+
+        //InitBattle();
+        nowPawnPos = grid1.GetCenter();
+        pawn.transform.position = grid1.GetWorldPos(nowPawnPos.x, nowPawnPos.y);
     }
 
-    // Update is called once per frame
+
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.A))
         {
-            DoAction("atk");
+            NextRoleAct();
         }
-    }
-
-    public class ActionNode
-    {
-        public int battleActorIdx;
-        public int priority = 999;
-    }
-
-    List<ActionNode> NowTurnActionSeq = new List<ActionNode>();
-    List<ActionNode> NextTurnActionSeq = new List<ActionNode>();
-
-    public int nowActorIdx = -1;
-
-    public void NextAction()
-    {
-
-        ActionNode frontNode = NowTurnActionSeq[0];
-        NowTurnActionSeq.RemoveAt(0);
-        NextTurnActionSeq.Add(frontNode);
-        if (NowTurnActionSeq.Count == 0)
+        HandleMouseClick();
+        if (Input.GetKeyDown(KeyCode.T))
         {
-            NextTurn();
-            return;
+            ActionExecutor exec = new ActionExecutor();
+            exec.AddEffect(eEffectType.Damage, "20");
+            exec.AddEffect(eEffectType.Delay, "1");
+            pendingActions.Add(exec);
         }
 
-        //更新视图
-        if(frontNode.battleActorIdx == -1)
+        TickAction();
+    }
+
+
+    #region round
+
+    public class ActionNode : System.IComparable<ActionNode>
+    {
+        public FakeActor battleActor;
+        public int prevIdx;
+        public int nowIdx;
+
+        public int CompareTo(ActionNode obj)  //实现该比较方法即可
         {
-            //ai
+            return battleActor.speed.CompareTo(obj.battleActor.speed);
         }
     }
 
-    public void NextTurn()
+    List<ActionNode> NowRoundActionSeq;
+    List<ActionNode> NextRoundActionSeq;
+    FakeActor nowTurnActor;
+    bool isPlayerTurn;
+
+    void InitBattle()
     {
 
-        NowTurnActionSeq = NextTurnActionSeq;
-        NextTurnActionSeq = new List<ActionNode>();
-    }
-
-    public void DoAction(string name)
-    {
-        effectList.Clear();
-        effectList.Add(new EffectNode());
-
-    }
-
-    public class EffectNode
-    {
-        public bool isDone;
-        public EffectCallback callback;
-
-    }
-    public List<EffectNode> effectList = new List<EffectNode>();
-    private int idx = -1;
-    public void HandleEffect()
-    {
-        if(idx == -1)
+        for (int i = 0; i < 5; i++)
         {
-            //no effect
-            return;
+            FakeActor fa = new FakeActor();
+            fa.id = i;
+            fa.speed = Random.Range(1, 100);
+            fakeActors.Add(fa);
         }
-        if(idx >= effectList.Count)
+
+
+        NextRoundActionSeq = new List<ActionNode>();
+
+        for (int i = 0; i < fakeActors.Count; i++)
         {
-            //next action
-            return;
+            ActionNode newNode = new ActionNode();
+            newNode.battleActor = fakeActors[i];
+            NextRoundActionSeq.Add(newNode);
         }
-        EffectNode nowNode = effectList[idx];
-        if (nowNode.isDone)
+        NextRoundActionSeq.Sort();
+
+        for (int i = 0; i < NextRoundActionSeq.Count; i++)
         {
-            idx += 1;
-
-
+            NextRoundActionSeq[i].nowIdx = i;
+            NextRoundActionSeq[i].prevIdx = i;
         }
-    }
 
-    public void NextEffectNode()
-    {
+        NextRound();
 
     }
-
-    public void EffectEnd(EffectNode node)
+    public void NextRound()
     {
-        node.isDone = true;
+        NowRound++;
+        NowRoundActionSeq = NextRoundActionSeq;
+        NextRoundActionSeq = new List<ActionNode>();
 
+        for (int i = 0; i < NowRoundActionSeq.Count; i++)
+        {
+            ActionNode newNode = new ActionNode();
+            newNode.battleActor = NowRoundActionSeq[i].battleActor;
+            NextRoundActionSeq.Add(newNode);
+        }
+        nowTurnActor = null;
+        Debug.Log("round " + NowRound);
+        NextRoleAct();
     }
 
-    private float animEndTime;
-    private EffectNode nodeNode;
-    private void TickEffect()
+
+    public void PlayerFinishTurn()
     {
-        if(nodeNode == null)
+        if (locked)
         {
             return;
         }
-        if(Time.time  > animEndTime)
+        if (!isPlayerTurn)
         {
-            //callback
-            nodeNode.callback(nodeNode);
-            nodeNode.isDone = true;
+            return;
+        }
+        NextRoleAct();
+    }
+
+    public void NextRoleAct()
+    {
+
+        if (NowRoundActionSeq.Count == 0)
+        {
+            NextRound();
+            return;
+        }
+
+        ActionNode frontNode = NowRoundActionSeq[0];
+        NowRoundActionSeq.RemoveAt(0);
+        nowTurnActor = frontNode.battleActor;
+
+        Debug.Log(nowTurnActor.id);
+
+
+        if (nowTurnActor.id == 0)
+        {
+            isPlayerTurn = true;
+        }
+        else
+        {
+            isPlayerTurn = false;
+        }
+
+        if (!isPlayerTurn)
+        {
+            Debug.Log("ai round start");
+            //抛出ai事件
+            StartCoroutine(AIAct());
         }
     }
+
+
+    IEnumerator AIAct()
+    {
+        yield return new WaitForSeconds(2);
+        Debug.Log("ai round finish");
+        NextRoleAct();
+    }
+    #endregion
+
+
+    #region acion
+
+    bool isDoingAction = false;
+    List<ActionExecutor> pendingActions = new List<ActionExecutor>();
+    private void TickAction()
+    {
+        if (pendingActions.Count == 0)
+        {
+            isDoingAction = false;
+            return;
+        }
+        ActionExecutor exec = pendingActions[0];
+        if (exec.isUpdating)
+        {
+            exec.Tick();
+        }
+        else
+        {
+            exec.HandleEffect();
+        }
+        if(exec.isUpdating)
+        {
+            return;
+        }
+        else if (exec.isDone)
+        {
+            Debug.Log("action finish");
+            pendingActions.RemoveAt(0);
+        }
+        else
+        {
+            Debug.Log("action error");
+            pendingActions.RemoveAt(0);
+        }
+    }
+
+    public void AddActionExecutor(ActionExecutor newAction)
+    {
+        pendingActions.Insert(0, newAction);
+    }
+
+    #endregion
+
+
+    bool locked;
+
+    Ray ray;
+    RaycastHit hit;
+    private void HandleMouseClick()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+             }
+
+            //if (!isPlayerTurn)
+            //{
+            //    return;
+            //}
+            if (locked)
+            {
+                return;
+            }
+
+            ray = mCamera.ScreenPointToRay(Input.mousePosition);
+            //Ray ray = new Ray(mCamera.transform.position,Vector3.forward);
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                Vector2Int pos = grid1.GetFromPosition(hit.point);
+
+                List<Vector2Int> path = grid1.FindPath(nowPawnPos, pos);
+
+                if (path == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < path.Count; i++)
+                {
+                    Debug.Log(path[i].x + " " + path[i].y);
+                }
+
+                nowPawnPos = pos;
+
+                grid1.ShowPath(path);
+
+                StartCoroutine(GoPath(path));
+                //pawn.transform.position = grid[pos.x, pos.y]._worldPos;
+
+                //mark.transform.position = hit.point;
+            }
+        }
+    }
+
+
+    IEnumerator GoPath(List<Vector2Int> path)
+    {
+        locked = true;
+
+        if (path.Count == 0)
+        {
+            yield break;
+        }
+        int pathIdx = 0;
+        while (pathIdx < path.Count)
+        {
+            Vector3 targetGridWorldPos = grid1.GetWorldPos(path[pathIdx].x, path[pathIdx].y);
+            while (true)
+            {
+                Vector3 diff = (targetGridWorldPos - pawn.transform.position);
+                Vector3 moveDist = diff.normalized * 3f * Time.deltaTime;
+                if (moveDist.magnitude >= diff.magnitude)
+                {
+                    pawn.transform.position = targetGridWorldPos;
+                    ++pathIdx;
+                    break;
+                }
+                pawn.transform.position += moveDist;
+                yield return null;
+            }
+        }
+        locked = false;
+        path.Clear();
+        yield break;
+    }
+
+
+
+
+
+
+
+
+    #region 常用函数
+
+
+    public static void DoDamage(int source, int target)
+    {
+
+    }
+
+    public static void AddModifier(string modifierName, Dictionary<string,string> param)
+    {
+
+    }
+    
+    public static void AddAbility(string abilityName)
+    {
+
+    }
+
+    public void DoDie()
+    {
+
+    }
+
+    #endregion
+
+
+
+
+
+
 }
+
+
+//public delegate void ApplyEffect();
+
+//public class ActionExecuter
+//{
+//    public bool isDone;
+//    public ApplyEffect callback;
+
+
+//    public void stop()
+//    {
+//        if (callback != null)
+//        {
+//            callback;
+//        }
+//    }
+
+//    public void start()
+//    {
+
+//    }
+//}

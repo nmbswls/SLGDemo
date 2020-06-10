@@ -1,34 +1,26 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Grid : MonoBehaviour, IGrid_PathSearch
 {
 
-    private Camera mCamera;
-    public GameObject pawn;
-    private Vector2Int nowPawnPos;
-    private bool moving;
     // Start is called before the first frame update
     void Start()
     {
         InitPathPot();
         InitPathSearch();
-
         //{
-        //    bool ret = pathComponent.CheckCrossWalkable(new Vector2(3, 3), new Vector2(5, 5));
+        //    bool ret = pathComponent.CheckCrossWalkable(new Vector2(39.5f, 19.5f), new Vector2(16.5f, 22.5f));
         //    Debug.Log(ret);
         //}
-        {
-            bool ret = pathComponent.CheckCrossWalkable(new Vector2(5.5f, 5.5f), new Vector2(0.5f, 0.5f));
-            Debug.Log(ret);
-        }
         
     }
 
 
     public bool showGrid;
-    private GridNode[,] grid;//网格
+    public GridNode[,] grid;//网格
 
     private Vector2 gridSize;//网格横纵大小
     public float nodeRadius;//格子的半径
@@ -40,7 +32,6 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     void Awake()
     {
 
-        mCamera = Camera.main;
         ShapeCollider = GetComponent<MeshCollider>();
 
         nodeDiameter = nodeRadius * 2;
@@ -65,10 +56,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
 
         showGrid = true;
 
-        pawn.transform.position = grid[gridCntX / 2, gridCntY / 2]._worldPos + Vector3.up * 1f;
-        nowPawnPos.x = gridCntX / 2;
-        nowPawnPos.y = gridCntY / 2;
-
+        
         for (int i = 20; i < 40; i++)
         {
             for (int j = 20; j < 40; j++)
@@ -84,7 +72,6 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     {
 
         HandleInput();
-        HandleMouseClick();
     }
 
     private void HandleInput()
@@ -93,25 +80,6 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         {
             showGrid = !showGrid;
         }
-
-
-        ////获取到玩家所在的网格点
-        //tar = GetFromPosition(tarTrans.position);
-        ////获取射程网格区域
-        //zoneLeftDown = GetFromPosition(tarTrans.position - new Vector3(dir, dir));
-        //zoneRightUp = GetFromPosition(tarTrans.position + new Vector3(dir, dir));
-        //获取一个随机点
-        //if (Input.GetKeyDown(KeyCode.Space))
-        //{
-        //    int len = FindPath(new Vector2Int(1, 1), new Vector2Int(11, 11));
-
-        //    if (len > 0)
-        //    {
-        //        ShowPath(len);
-        //    }
-
-        //    //Vector3 randPos = GetZoneRandomPos(transform.position, 10f);
-        //}
     }
 
 
@@ -127,9 +95,16 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         }
     }
 
-    private void ShowPath()
+    public void ShowPath(List<Vector2Int> path)
     {
-
+        if(path == null)
+        {
+            for (int i = 0; i < pathViewList.Length; i++)
+            {
+                pathViewList[i].SetActive(false);
+            }
+            return;
+        }
  
         for (int i = 0; i < path.Count; i++)
         {
@@ -145,65 +120,17 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         }
     }
 
-
-    Ray ray;
-    RaycastHit hit;
-    private void HandleMouseClick()
+    public Vector2Int GetCenter()
     {
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (moving)
-            {
-                return;
-            }
-
-            ray = mCamera.ScreenPointToRay(Input.mousePosition);
-
-            //Ray ray = new Ray(mCamera.transform.position,Vector3.forward);
-            
-            if (Physics.Raycast(ray, out hit))
-            {
-                Vector2Int pos = GetFromPosition(hit.point);
-
-                FindPath(nowPawnPos, pos);
-
-                for(int i=0;i<path.Count;i++){
-                    Debug.Log(path[i]);
-                }
-
-
-                if (path == null)
-                {
-                    return;
-                }
-
-
-                nowPawnPos = pos;
-
-                ShowPath();
-
-                StartCoroutine(GoPath());
-                //pawn.transform.position = grid[pos.x, pos.y]._worldPos;
-
-                //mark.transform.position = hit.point;
-            }
-        }   
+        return new Vector2Int(gridCntX / 2, gridCntY / 2);
+    }
+    
+    public Vector3 GetWorldPos(int x, int y)
+    {
+        return grid[x, y]._worldPos;
     }
 
-
-    IEnumerator GoPath()
-    {
-        moving = true;
-        for (int i = 0; i < path.Count; i++)
-        {
-            GridNode node = grid[path[i].x, path[i].y];
-            pawn.transform.position = node._worldPos;
-            yield return new WaitForSeconds(0.1f);
-        }
-        moving = false;
-        ShowPath();
-        yield break;
-    }
+    
 
 
     [System.Serializable]
@@ -259,8 +186,8 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         Vector2Int zoneLeftDown = GetFromPosition(center - new Vector3(length, length));
         Vector2Int zoneRightUp = GetFromPosition(center + new Vector3(length, length));
         //获取并返回射程网格区域中的一个随机点
-        int i = Random.Range(zoneLeftDown.x, zoneRightUp.x);
-        int j = Random.Range(zoneLeftDown.y, zoneRightUp.y);
+        int i = UnityEngine.Random.Range(zoneLeftDown.x, zoneRightUp.x);
+        int j = UnityEngine.Random.Range(zoneLeftDown.y, zoneRightUp.y);
 
         return grid[i, j]._worldPos;
     }
@@ -268,8 +195,8 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     //获取整个区域中的一个随机点
     public Vector3 GetZoneRandomPos()
     {
-        int i = Random.Range(0, gridCntX);
-        int j = Random.Range(0, gridCntY);
+        int i = UnityEngine.Random.Range(0, gridCntX);
+        int j = UnityEngine.Random.Range(0, gridCntY);
         return grid[i, j]._worldPos;
     }
 
@@ -380,19 +307,18 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     #region Path
 
     PathSearcher pathComponent;
-    List<Vector2Int> path;
     public void InitPathSearch(){
         pathComponent = new PathSearcher(this,100);
     }
 
-    public void FindPath(Vector2Int from, Vector2Int to)
+    public List<Vector2Int> FindPath(Vector2Int from, Vector2Int to)
     {
-        path = null;
         if (pathComponent == null)
         {
-            return ;
+            return new List<Vector2Int>();
         }
-        path = pathComponent.FindPath(from, to);
+        
+        return pathComponent.FindPath(from, to);
     }
 
     public bool canPass(Vector2Int from, Vector2Int to)
@@ -404,18 +330,23 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         return new Vector2Int(gridCntX, gridCntY);
     }
 
-    public bool isBlock(Vector2Int checkPos)
+    public int getGridSize()
     {
-        if (checkPos.x < 0 || checkPos.x >= gridCntX || checkPos.y < 0 || checkPos.y >= gridCntY)
+        return gridCntX * gridCntY;
+    }
+
+    public bool isBlock(int x, int y)
+    {
+        if (x < 0 || x >= gridCntX || y < 0 || y >= gridCntY)
         {
             return true;
         }
 
-        if (grid[checkPos.x, checkPos.y] == null)
+        if (grid[x, y] == null)
         {
             return true;
         }
-        return grid[checkPos.x, checkPos.y].blocked;
+        return grid[x, y].blocked;
     }
 
     public float getH(Vector2Int from, Vector2Int to)
@@ -433,24 +364,60 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         return cost;
     }
 
+    public List<Vector2Int> getNeighbours(int x, int y)
+    {
+        Vector2Int maxGridXY = getMaxGridXY();
+
+        int startX = x - 1 > 0 ? x - 1 : 0;
+        int startY = y - 1 > 0 ? y - 1 : 0;
+        int endX = x + 1 <= maxGridXY.x - 1 ? x + 1 : maxGridXY.x - 1;
+        int endY = y + 1 <= maxGridXY.y - 1 ? y + 1 : maxGridXY.y - 1;
+
+        List<Vector2Int> ret = new List<Vector2Int>();
+        
+        for (int xx = startX; xx <= endX; xx++)
+        {
+            for (int yy = startY; yy <= endY; yy++)
+            {
+                if(xx == x && yy == y)
+                {
+                    continue;
+                }
+                ret.Add(new Vector2Int(xx, yy));
+            }
+        }
+        return ret;
+    }
+
     #endregion
 }
 
 public interface IGrid_PathSearch{
 
+    int getGridSize();
     Vector2Int getMaxGridXY();
     bool canPass(Vector2Int from, Vector2Int to);
-    bool isBlock(Vector2Int pos);
+    bool isBlock(int x, int y);
 
     float getH(Vector2Int from, Vector2Int to);
     float getG(Vector2Int from, Vector2Int to);
+    List<Vector2Int> getNeighbours(int x, int y);
+
 }
 public class PathSearcher
 {
 
     public IGrid_PathSearch owner;
-    public bool useFloyd = false;
+    public bool useFloyd = true;
     int maxPathLen;
+
+    private Heap<PathSearchNode> openList;
+    //private PriorityQueue<PathSearchNode> openList = new PriorityQueue<PathSearchNode>(new NodeComparer());
+
+    private Dictionary<string, PathSearchNode> openSet;
+    private HashSet<string> closeSet;
+
+    private Vector2Int targetPos;
 
     public PathSearcher(IGrid_PathSearch owner, int maxPathLen = 200)
     {
@@ -459,7 +426,7 @@ public class PathSearcher
     }
 
 
-    private class PathSearchNode
+    private class PathSearchNode : IHeapItem<PathSearchNode>
     {
         public int x;
         public int y;
@@ -469,23 +436,35 @@ public class PathSearcher
         public float h;
         public PathSearchNode previous;
         public int depth;
+
+        private int _heapIndex = 0;
+        public int HeapIndex {
+            get {return _heapIndex; }
+            set { _heapIndex = value; }
+        }
+
+        public int CompareTo(PathSearchNode other)
+        {
+
+            int compare = f.CompareTo(other.f);
+            if (compare == 0)
+            {
+                compare = h.CompareTo(other.h);
+            }
+            return -compare;
+        }
+
+        public override string ToString()
+        {
+            return x.ToString() + "," + y.ToString();
+        }
     }
 
-    private PriorityQueue<PathSearchNode> openList = new PriorityQueue<PathSearchNode>(new NodeComparer());
-    private Dictionary<string, PathSearchNode> openSet = new Dictionary<string, PathSearchNode>();
-    private HashSet<string> closeSet = new HashSet<string>();
-
-
-    private class NodeComparer : IComparer<PathSearchNode>
+    private void Reset()
     {
-        public int Compare(PathSearchNode x, PathSearchNode y)
-        {
-            if (float.Equals(x.f, y.f))
-            {
-                return 0;
-            }
-            return x.f > y.f ? -1 : 1;
-        }
+        openList = new Heap<PathSearchNode>(owner.getGridSize());
+        openSet = new Dictionary<string, PathSearchNode>();
+        closeSet = new HashSet<string>();
     }
 
 
@@ -494,7 +473,6 @@ public class PathSearcher
         List<Vector2Int> pathNodes = new List<Vector2Int>();
         if (!FindPathAstar(from, to, ref pathNodes))
         {
-            Debug.Log("?");
             return null;
         }
         if (useFloyd)
@@ -503,6 +481,11 @@ public class PathSearcher
 
         }
         return pathNodes;
+    }
+
+    private string pos2key(int x, int y)
+    {
+        return x + " " + y;
     }
 
     //直线 直接算距离 
@@ -515,11 +498,8 @@ public class PathSearcher
         }
 
         PathSearchNode pNode = null;
-        closeSet.Clear();
-        openSet.Clear();
-        openList.Clear();
+        Reset();
 
-        Vector2Int maxGridXY = owner.getMaxGridXY();
 
         bool found = false;
         PathSearchNode endNode = null;
@@ -527,21 +507,15 @@ public class PathSearcher
         PathSearchNode startNode = new PathSearchNode();
         startNode.x = from.x;
         startNode.y = from.y;
-        openList.Push(startNode);
-        openSet.Add(startNode.x + " " + startNode.y, startNode);
+        openList.Add(startNode);
+        openSet.Add(pos2key(from.x, from.y), startNode);
 
 
         while (openList.Count > 0)
         {
-
-            pNode = openList.Pop();
+            pNode = openList.RemoveFirst();
 
             Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
-
-            if (closeSet.Contains(pNode.x + " " + pNode.y))
-            {
-                continue;
-            }
             if (pNode.x == to.x && pNode.y == to.y)
             {
                 found = true;
@@ -549,60 +523,68 @@ public class PathSearcher
                 break;
             }
 
+            //只有不修改原值 压入新值时才需要这一步
+            //if (closeSet.Contains(pos2key(pNode.x,pNode.y)))
+            //{
+            //    continue;
+            //}
+            
+
             if (pNode.depth > maxPathLen)
             {
                 continue;
             }
-            int startX = pNode.x - 1 > 0 ? pNode.x - 1 : 0;
-            int startY = pNode.y - 1 > 0 ? pNode.y - 1 : 0;
-            int endX = pNode.x + 1 <= maxGridXY.x - 1 ? pNode.x + 1 : maxGridXY.x - 1;
-            int endY = pNode.y + 1 <= maxGridXY.y - 1 ? pNode.y + 1 : maxGridXY.y - 1;
-            for (int x = startX; x <= endX; x++)
+
+            List<Vector2Int> neighbours = owner.getNeighbours(pNode.x, pNode.y);
+            for(int i = 0; i < neighbours.Count; i++)
             {
-                for (int y = startY; y <= endY; y++)
+
+                Vector2Int probePos = neighbours[i];
+                
+                if (owner.isBlock(probePos.x, probePos.y))
                 {
-                    Vector2Int probePos = new Vector2Int(x,y);
-                    if (x == pNode.x && y == pNode.y)
+                    continue;
+                }
+                string probeKey = pos2key(probePos.x, probePos.y);
+                if (closeSet.Contains(probeKey))
+                {
+                    continue;
+                }
+
+                float newG = pNode.g + owner.getG(pNodePos, probePos);
+                float newH = owner.getH(probePos, to);
+                float newF = newG + newH;
+
+                if (openSet.ContainsKey(probeKey))
+                {
+                    if (openSet[probeKey].g <= newG)
                     {
                         continue;
                     }
-                    if (owner.isBlock(probePos))
-                    {
-                        continue;
-                    }
-                    float gCost = owner.getG(pNodePos, probePos);
-                    
-                    float g = pNode.g + gCost;
-                    float h = owner.getH(probePos,to);
-                    float f = g + h;
-
-                    if (closeSet.Contains(x + " " + y))
-                    {
-                        continue;
-                    }
-
-                    if (openSet.ContainsKey(x + " " + y))
-                    {
-                        if (openSet[x + " " + y].f <= f)
-                        {
-                            continue;
-                        }
-                    }
-
+                    PathSearchNode oldNode = openSet[probeKey];
+                    oldNode.f = newF;
+                    oldNode.g = newG;
+                    oldNode.h = newH;
+                    oldNode.depth = pNode.depth + 1;
+                    oldNode.previous = pNode;
+                    openList.UpdateItem(oldNode);
+                }
+                else
+                {
                     PathSearchNode newNode = new PathSearchNode();
-                    newNode.x = x;
-                    newNode.y = y;
-                    newNode.f = f;
-                    newNode.g = g;
-                    newNode.h = h;
+                    newNode.x = probePos.x;
+                    newNode.y = probePos.y;
+                    newNode.f = newF;
+                    newNode.g = newG;
+                    newNode.h = newH;
                     newNode.depth = pNode.depth + 1;
                     newNode.previous = pNode;
 
-                    openSet[x + " " + y] = newNode;
-                    openList.Push(newNode);
+                    openSet[probeKey] = newNode;
+                    openList.Add(newNode);
                 }
             }
-            closeSet.Add(pNode.x + " " + pNode.y);
+            closeSet.Add(pos2key(pNode.x, pNode.y));
         }
 
         if (!found)
@@ -620,12 +602,175 @@ public class PathSearcher
     }
 
 
-#region floyd
+    //private bool FindPathJPS(Vector2Int from, Vector2Int to)
+    //{
+    //    PathSearchNode currentNode;
+
+    //    PathSearchNode startNode = new PathSearchNode();
+    //    startNode.x = from.x;
+    //    startNode.y = from.y;
+
+    //    openList.Push(startNode);
+    //    openSet.Add(startNode.x + " " + startNode.y, startNode);
+
+
+
+    //    while (openList.Count > 0)
+    //    {
+    //        currentNode = openSet.RemoveFirst();
+    //        openSetContainer.Remove(_startNode);
+
+    //        if (currentNode == _targetNode)
+    //        {
+    //            return true;
+    //        }
+
+
+    //        closedSet.Add(currentNode);
+    //        List<Node> Nodes = _GetSuccessors(currentNode);
+
+    //        foreach (Node node in Nodes)
+    //        {
+    //            jumpNodes.Add(node);
+
+    //            if (closedSet.Contains(node))
+    //                continue;
+
+    //            int newGCost = currentNode.gCost + _GetDistance(currentNode, node);
+    //            if (newGCost < node.gCost || !openSetContainer.Contains(node))
+    //            {
+    //                node.gCost = newGCost;
+    //                node.hCost = _GetDistance(node, _targetNode);
+    //                node.parent = currentNode;
+
+    //                if (!openSetContainer.Contains(node))
+    //                {
+    //                    openSetContainer.Add(node);
+    //                    openSet.Add(node);
+    //                }
+    //                else
+    //                {
+    //                    openSet.UpdateItem(node);
+    //                }
+    //            }
+    //        }
+
+    //    }
+    //    return false;
+    //}
+
+
+    //private List<Node> _GetSuccessors(Node currentNode)
+    //{
+    //    Node jumpNode;
+    //    List<Node> successors = new List<Node>();
+    //    List<Node> neighbours = _grid.GetNeighbours(currentNode);
+
+    //    foreach (Node neighbour in neighbours)
+    //    {
+    //        int xDirection = neighbour.x - currentNode.x;
+    //        int yDirection = neighbour.y - currentNode.y;
+
+    //        jumpNode = _Jump(neighbour, currentNode, xDirection, yDirection);
+
+    //        if (jumpNode != null)
+    //            successors.Add(jumpNode);
+    //    }
+    //    return successors;
+    //}
+
+
+    //private bool _Jump(Vector2Int currentNode, Vector2Int parentNode, int xDirection, int yDirection, out Vector2Int ret)
+    //{
+    //    ret = Vector2Int.zero;
+
+    //    if (currentNode == null || owner.isBlock(currentNode.x, currentNode.y))
+    //        return false;
+    //    if (currentNode == targetPos)
+    //    {
+    //        _forced = true;
+    //        ret = currentNode;
+    //        return true;
+    //    }
+
+    //    _forced = false;
+    //    if (xDirection != 0 && yDirection != 0)
+    //    {
+    //        if ((owner.isBlock(currentNode.x - xDirection, currentNode.y) && !owner.isBlock(currentNode.x - xDirection, currentNode.y + yDirection)) ||
+    //            (owner.isBlock(currentNode.x, currentNode.y - yDirection) && !owner.isBlock(currentNode.x + xDirection, currentNode.y - yDirection)))
+    //        {
+    //            ret = currentNode;
+    //            return true;
+    //        }
+
+
+    //        Vector2Int nextHorizontalNode = new Vector2Int(currentNode.x + xDirection, currentNode.y);
+    //        Vector2Int nextVerticalNode = new Vector2Int(currentNode.x, currentNode.y + yDirection);
+    //        if (nextHorizontalNode == null || nextVerticalNode == null)
+    //        {
+    //            bool found = false;
+    //            if (nextHorizontalNode != null && !owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
+    //            {
+    //                found = true;
+    //            }
+    //            if (nextVerticalNode != null && owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
+    //            {
+    //                found = true;
+    //            }
+
+    //            if (!found)
+    //                return false;
+    //        }
+    //        Vector2Int outV2;
+    //        if (_Jump(nextHorizontalNode, currentNode, xDirection, 0, out outV2) || _Jump(nextVerticalNode, currentNode, 0, yDirection, out outV2))
+    //        {
+    //            if (!_forced)
+    //            {
+    //                UnityEngine.Debug.Log(currentNode);
+    //                Vector2Int temp = new Vector2Int(currentNode.x + xDirection, currentNode.y + yDirection);
+    //                if (temp != null && _grid.showDebug)
+    //                    UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(temp.x, 1, temp.y), Color.green, Mathf.Infinity);
+    //                return _Jump(temp, currentNode, xDirection, yDirection);
+    //            }
+    //            else
+    //            {
+    //                return currentNode;
+    //            }
+    //        }
+    //    }
+    //    else
+    //    {
+    //        if (xDirection != 0)
+    //        {
+    //            if ((_grid.IsWalkable(currentNode.x + xDirection, currentNode.y + 1) && !_grid.IsWalkable(currentNode.x, currentNode.y + 1)) ||
+    //                (_grid.IsWalkable(currentNode.x + xDirection, currentNode.y - 1) && !_grid.IsWalkable(currentNode.x, currentNode.y - 1)))
+    //            {
+    //                _forced = true;
+    //                return currentNode;
+    //            }
+    //        }
+    //        else
+    //        {
+    //            if ((_grid.IsWalkable(currentNode.x + 1, currentNode.y + yDirection) && !_grid.IsWalkable(currentNode.x + 1, currentNode.y)) ||
+    //                (_grid.IsWalkable(currentNode.x - 1, currentNode.y + yDirection) && !_grid.IsWalkable(currentNode.x - 1, currentNode.y)))
+    //            {
+    //                _forced = true;
+    //                return currentNode;
+    //            }
+    //        }
+    //    }
+    //    Node nextNode = _grid.GetNodeFromIndex(currentNode.x + xDirection, currentNode.y + yDirection);
+    //    if (nextNode != null && _grid.showDebug)
+    //        UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(nextNode.x, 1, nextNode.y), Color.green, Mathf.Infinity);
+    //    return _Jump(nextNode, currentNode, xDirection, yDirection);
+    //}
+
+
+    #region floyd
 
     //平滑路径 弗洛伊德算法
     public void Floyd(List<Vector2Int> path)
     {
-
 
         if (path == null)
         {
@@ -659,20 +804,19 @@ public class PathSearcher
 
         //去掉无用拐点
         len = path.Count;
-        for (int i = len - 1; i >= 0; i--)
+        for (int i = len - 1; i >= 2; i--)
         {
-            for (int j = 0; j <= i - 1; j++)
+            for (int j = 0; j <= i - 2; j++)
             {
                 Vector2 p1 = new Vector2(path[i].x + 0.5f, path[i].y + 0.5f);
                 Vector2 p2 = new Vector2(path[j].x + 0.5f, path[j].y + 0.5f);
                 if (CheckCrossWalkable(p1, p2))
                 {
-                    for (int k = i - 1; k >= j; k--)
+                    for (int k = i - 1; k > j; k--)
                     {
                         path.RemoveAt(k);
                     }
                     i = j;
-                    //len = path.Count;
                     break;
                 }
             }
@@ -680,14 +824,10 @@ public class PathSearcher
     }
 
     //输入值为 点在单元格内百分比位置
+    //只支持非负
+    //只支持中心开始
     public bool CheckCrossWalkable(Vector2 p1, Vector2 p2)
     {
-        if (p1.x > p2.x)
-        {
-            Vector2 tmp = p1;
-            p1 = p2;
-            p2 = tmp;
-        }
 
         bool changexz = Mathf.Abs(p2.y - p1.y) > Mathf.Abs(p2.x - p1.x);
 
@@ -701,140 +841,299 @@ public class PathSearcher
             p2.y = temp;
         }
 
+        if (p1.x == p2.x && p1.y == p2.y)
+        {
+            return true;
+        }
+
+        if(p1.x > p2.x)
+        {
+            Vector2 tmp = p1;
+            p1 = p2;
+            p2 = tmp;
+        }
+
+        
+
         if (!checkWalkable(Vector2Int.FloorToInt(p1), changexz))
         {
             return false;
         }
+
+        float deltay = 1.0f * ((p2.y - p1.y) / (p2.x - p1.x));
         
-        
-        float stepX = p2.x > p1.x ? 1 : (p2.x < p1.x ? -1 : 0);
-        float stepY = p2.y > p1.y ? 1 : (p2.y < p1.y ? -1 : 0);
-        float deltay = 1 * ((p2.y - p1.y) / Mathf.Abs(p2.x - p1.x));
-        
-        float nowX = p1.x + stepX / 2;
-        float nowY = p1.y - stepY / 2;
-        float CheckY = nowY;
+        float nowX = p1.x + 0.5f;
+        float nowY = p1.y + deltay / 2;
+        float lastY;
+
+        //for (int i = (int)start.y; i <= (int)nowY; i++)
+        //{
+        //    if (checkY((int)start.y, nowY, xInt - 1))
+        //    {
+        //        return true;
+        //    }
+        //}
 
 
-        while (nowX < (int)p2.x)
+
+        while (nowX < p2.x)
         {
-
-            if (!checkWalkable(new Vector2Int((int)nowX, (int)CheckY), changexz))
+            lastY = nowY;
+            nowY += deltay;
+            if (!checkYStripWalkable(lastY, nowY, (int)nowX, changexz))
             {
                 return false;
             }
-            nowY += deltay;
-            if (nowY >= CheckY + stepY)
-            {
-                CheckY += stepY;
-                if (!checkWalkable(new Vector2Int((int)nowX, (int)CheckY), changexz))
-                {
-                    return false;
-                }
-            }
-            nowX += stepX;
+            nowX += 1;
+        }
 
+        //for (int i = (int)lastY; i <= (int)end.y; i++)
+        //{
+        //    if (checkY(lastY, (int)end.y, xInt - 1))
+        //    {
+        //        return true;
+        //    }
+        //}
+
+
+        return true;
+    }
+
+
+    public bool checkYStripWalkable(float yf, float yt, int x, bool changexz)
+    {
+        if (yf > yt)
+        {
+            float tmp = yf;
+            yf = yt;
+            yt = tmp;
+        }
+        for (int y = (int)yf; y <= (int)yt; y++)
+        {
+            if (!checkWalkable(new Vector2Int(x,y), changexz))
+            {
+                return false;
+            }
         }
         return true;
     }
-    
+
+
 
     private bool checkWalkable(Vector2Int pos, bool changexz)
     {
-
-
-        bool ret = false;
+        bool ret;
         if (changexz)
         {
-            ret = owner.isBlock(new Vector2Int(pos.y, pos.x));
+            ret = owner.isBlock(pos.y, pos.x);
+            //Debug.Log("check " + pos.y + " " + pos.x + " " + ret);
+            //Grid grid = owner as Grid;
+            //Vector3 showPos = grid.grid[pos.y, pos.x]._worldPos;
+            //GameObject.Instantiate(grid.pathNodeViewPrefab, showPos, Quaternion.identity);
         }
         else
         {
-            ret = owner.isBlock(new Vector2Int(pos.x, pos.y));
+            ret = owner.isBlock(pos.x, pos.y);
+            //Debug.Log("check " + pos.x + " " + pos.y + " " + ret);
+            //Grid grid = owner as Grid;
+            //Vector3 showPos = grid.grid[pos.x, pos.y]._worldPos;
+            //GameObject.Instantiate(grid.pathNodeViewPrefab, showPos, Quaternion.identity);
         }
 
         return !ret;
     }
 
 
-#endregion
+    #endregion
 
 
-    #region PriorityQueue
+    #region Heap
 
-    class PriorityQueue<T>
+    public class Heap<T> where T : IHeapItem<T>
     {
-        IComparer<T> comparer;
-        T[] heap;
-
-        Dictionary<T, bool> dic = new Dictionary<T, bool>();
-
-        public int Count { get; private set; }
-
-        public PriorityQueue() : this(null) { }
-        public PriorityQueue(int capacity) : this(capacity, null) { }
-        public PriorityQueue(IComparer<T> comparer) : this(16, comparer) { }
-
-        public PriorityQueue(int capacity, IComparer<T> comparer)
+        private T[] _items = null;
+        private int _currentItemCount = 0;
+        public int Count
         {
-            this.comparer = (comparer == null) ? Comparer<T>.Default : comparer;
-            this.heap = new T[capacity];
-        }
-
-        public void Push(T v)
-        {
-            if (Count >= heap.Length) System.Array.Resize(ref heap, Count * 2);
-            heap[Count] = v;
-            dic[v] = true;
-            SiftUp(Count++);
-        }
-
-        public T Pop()
-        {
-            var v = Top();
-            heap[0] = heap[--Count];
-            if (Count > 0) SiftDown(0);
-            dic.Remove(v);
-            return v;
-        }
-
-        public bool Contains(T v)
-        {
-            return dic.ContainsKey(v);
-        }
-
-        public T Top()
-        {
-            if (Count > 0) return heap[0];
-            throw new System.InvalidOperationException("优先队列为空");
-        }
-
-        public void Clear()
-        {
-            heap = new T[16];
-            Count = 0;
-            dic.Clear();
-        }
-
-        void SiftUp(int n)
-        {
-            var v = heap[n];
-            for (var n2 = n / 2; n > 0 && comparer.Compare(v, heap[n2]) > 0; n = n2, n2 /= 2) heap[n] = heap[n2];
-            heap[n] = v;
-        }
-
-        void SiftDown(int n)
-        {
-            var v = heap[n];
-            for (var n2 = n * 2; n2 < Count; n = n2, n2 *= 2)
+            get
             {
-                if (n2 + 1 < Count && comparer.Compare(heap[n2 + 1], heap[n2]) > 0) n2++;
-                if (comparer.Compare(v, heap[n2]) >= 0) break;
-                heap[n] = heap[n2];
+                return _currentItemCount;
             }
-            heap[n] = v;
+        }
+
+        public Heap(int MaxHeapSize)
+        {
+            _items = new T[MaxHeapSize];
+        }
+
+        public T[] ToArray()
+        {
+            return _items;
+        }
+
+        public void Add(T item)
+        {
+            item.HeapIndex = _currentItemCount;
+            _items[_currentItemCount] = item;
+            _SortUp(item);
+            _currentItemCount++;
+        }
+
+        public T RemoveFirst()
+        {
+            T firstItem = _items[0];
+            _currentItemCount--;
+            _items[0] = _items[_currentItemCount];
+            _items[0].HeapIndex = 0;
+            _SortDown(_items[0]);
+            return firstItem;
+        }
+
+        public void UpdateItem(T item)
+        {
+            _SortUp(item);
+        }
+
+        public bool Contains(T item)
+        {
+            return Equals(_items[item.HeapIndex], item);
+        }
+
+        private void _SortUp(T item)
+        {
+            int parentIndex = (item.HeapIndex - 1) / 2;
+
+            while (true)
+            {
+                T parentItem = _items[parentIndex];
+
+                if (item.CompareTo(parentItem) > 0)
+                    _Swap(item, parentItem);
+                else
+                    break;
+
+                parentIndex = (item.HeapIndex - 1) / 2;
+            }
+        }
+
+        private void _SortDown(T item)
+        {
+            while (true)
+            {
+                int childLeftIndex = (item.HeapIndex * 2) + 1;
+                int childRightIndex = (item.HeapIndex * 2) + 2;
+                int swapIndex = 0;
+
+                if (childLeftIndex < _currentItemCount)
+                {
+                    swapIndex = childLeftIndex;
+
+                    if (childRightIndex < _currentItemCount)
+                        if (_items[childLeftIndex].CompareTo(_items[childRightIndex]) < 0)
+                            swapIndex = childRightIndex;
+
+                    if (item.CompareTo(_items[swapIndex]) < 0)
+                        _Swap(item, _items[swapIndex]);
+                    else
+                        return;
+                }
+                else
+                    return;
+            }
+        }
+
+        private void _Swap(T itemA, T itemB)
+        {
+            _items[itemA.HeapIndex] = itemB;
+            _items[itemB.HeapIndex] = itemA;
+
+            int tempItemAIndex = itemA.HeapIndex;
+            itemA.HeapIndex = itemB.HeapIndex;
+            itemB.HeapIndex = tempItemAIndex;
         }
     }
+
+    public interface IHeapItem<T> : IComparable<T>
+    {
+        int HeapIndex
+        {
+            get; set;
+        }
+    }
+
+    //class PriorityQueue<T>
+    //{
+    //    IComparer<T> comparer;
+    //    T[] heap;
+
+    //    Dictionary<T, bool> dic = new Dictionary<T, bool>();
+
+    //    public int Count { get; private set; }
+
+    //    public PriorityQueue() : this(null) { }
+    //    public PriorityQueue(int capacity) : this(capacity, null) { }
+    //    public PriorityQueue(IComparer<T> comparer) : this(16, comparer) { }
+
+    //    public PriorityQueue(int capacity, IComparer<T> comparer)
+    //    {
+    //        this.comparer = (comparer == null) ? Comparer<T>.Default : comparer;
+    //        this.heap = new T[capacity];
+    //    }
+
+    //    public void Push(T v)
+    //    {
+    //        if (Count >= heap.Length) System.Array.Resize(ref heap, Count * 2);
+    //        heap[Count] = v;
+    //        dic[v] = true;
+    //        SiftUp(Count++);
+    //    }
+
+    //    public T Pop()
+    //    {
+    //        var v = Top();
+    //        heap[0] = heap[--Count];
+    //        if (Count > 0) SiftDown(0);
+    //        dic.Remove(v);
+    //        return v;
+    //    }
+
+    //    public bool Contains(T v)
+    //    {
+    //        return dic.ContainsKey(v);
+    //    }
+
+    //    public T Top()
+    //    {
+    //        if (Count > 0) return heap[0];
+    //        throw new System.InvalidOperationException("优先队列为空");
+    //    }
+
+    //    public void Clear()
+    //    {
+    //        heap = new T[16];
+    //        Count = 0;
+    //        dic.Clear();
+    //    }
+
+    //    void SiftUp(int n)
+    //    {
+    //        var v = heap[n];
+    //        for (var n2 = n / 2; n > 0 && comparer.Compare(v, heap[n2]) > 0; n = n2, n2 /= 2) heap[n] = heap[n2];
+    //        heap[n] = v;
+    //    }
+
+    //    void SiftDown(int n)
+    //    {
+    //        var v = heap[n];
+    //        for (var n2 = n * 2; n2 < Count; n = n2, n2 *= 2)
+    //        {
+    //            if (n2 + 1 < Count && comparer.Compare(heap[n2 + 1], heap[n2]) > 0) n2++;
+    //            if (comparer.Compare(v, heap[n2]) >= 0) break;
+    //            heap[n] = heap[n2];
+    //        }
+    //        heap[n] = v;
+    //    }
+    //}
     #endregion
 
 }
