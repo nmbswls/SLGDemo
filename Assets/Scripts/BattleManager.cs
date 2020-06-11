@@ -55,10 +55,7 @@ public class BattleManager : MonoBehaviour
         HandleMouseClick();
         if (Input.GetKeyDown(KeyCode.T))
         {
-            ActionExecutor exec = new ActionExecutor();
-            exec.AddEffect(eEffectType.Damage, "20");
-            exec.AddEffect(eEffectType.Delay, "1");
-            pendingActions.Add(exec);
+            pawn.UseAbility(1);
         }
 
         TickAction();
@@ -122,6 +119,7 @@ public class BattleManager : MonoBehaviour
             {
                 unit.nowGridPos = new Vector2Int(UnityEngine.Random.Range(50, 70), UnityEngine.Random.Range(50, 70));
             }
+            unit.Init();
             unit.AdjustPos();
             BattleUnits.Add(unit);
         }
@@ -223,7 +221,30 @@ public class BattleManager : MonoBehaviour
 
     #region acion
 
-    List<ActionExecutor> pendingActions = new List<ActionExecutor>();
+    public List<ActionExecutor> pendingActions = new List<ActionExecutor>();
+    //public ActionExecutor HandlingAction = null;
+
+
+    public void AddEffect(eEffectType name, string paramstring)
+    {
+        if (pendingActions.Count == 0)
+        {
+            pendingActions.Add(new ActionExecutor());
+        }
+
+
+        pendingActions[0].AddEffect(name, paramstring);
+    }
+
+    public void AddEffectImmediate(eEffectType name, string paramstring)
+    {
+        if (pendingActions.Count == 0)
+        {
+            pendingActions.Add(new ActionExecutor());
+        }
+        pendingActions[0].InsertEffect(0, name, paramstring);
+    }
+
     private void TickAction()
     {
         if (pendingActions.Count == 0)
@@ -366,7 +387,11 @@ public class BattleManager : MonoBehaviour
 
     public static void DoDamage(int source, int target)
     {
-
+        for(int i=1; i< Instance.BattleUnits.Count; i++)
+        {
+            BaseUnit unit = Instance.BattleUnits[i];
+            unit.DoDamage(100);
+        }
     }
 
     public static void AddModifier(string modifierName, Dictionary<string,string> param)
@@ -379,11 +404,16 @@ public class BattleManager : MonoBehaviour
 
     }
 
-    public List<BaseUnit> DyingQueue = new List<BaseUnit>();
 
+    
     public void DoDie(BaseUnit unit)
     {
-        DyingQueue.Add(unit);
+        //事件
+
+        unit.OnDie();
+        //遍历modifier
+        //
+        
     }
 
     #endregion

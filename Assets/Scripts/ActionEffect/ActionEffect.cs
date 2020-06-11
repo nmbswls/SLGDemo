@@ -1,7 +1,9 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEditor.MemoryProfiler;
 using UnityEngine;
+using XLua;
 
 public class ActionEffect
 {
@@ -10,13 +12,14 @@ public class ActionEffect
 
 public enum eEffectType
 {
-    Move,
-    Attack,
-    Delay,
-    Sleep,
-    Damage,
-    AddBuff,
-    Animation,
+    Nonde = 0,
+    Move = 1,
+    Attack = 2,
+    Delay = 3,
+    Sleep = 4,
+    Damage = 5,
+    AddBuff = 6,
+    Animation = 7,
 }
 
 public class ActionExecutor
@@ -46,7 +49,7 @@ public class ActionExecutor
         }
     }
 
-    public void InsertEffect<T>(int idx, eEffectType eid, string paramstring)
+    public void InsertEffect(int idx, eEffectType eid, string paramstring)
     {
         EffectNodeBase newNode = createNode(eid, paramstring);
         if (newNode != null)
@@ -189,7 +192,7 @@ public class EffectNode_Delay : EffectNodeBase
     public override ExecRet Tick()
     {
         timer += Time.deltaTime;
-        Debug.Log("delay");
+        //Debug.Log("delay");
         if (triggered)
         {
             if (timer > delaySeconds)
@@ -203,9 +206,10 @@ public class EffectNode_Delay : EffectNodeBase
         }
         if (timer > delaySeconds * 0.5f)
         {
-            ActionExecutor exec = new ActionExecutor();
-            exec.AddEffect(eEffectType.Sleep,"2");
-            BattleManager.Instance.AddActionExecutor(exec);
+            //ActionExecutor exec = new ActionExecutor();
+            //exec.AddEffect(eEffectType.Sleep,"2");
+
+            BattleManager.Instance.AddEffectImmediate(eEffectType.Sleep, "2");
             triggered = true;
         }
         return ExecRet.UPDATING;
@@ -307,6 +311,9 @@ public class EffectNode_Damage : EffectNodeBase
     public override ExecRet Exec()
     {
         Debug.Log("damage: " + Damage);
+
+        BattleManager.DoDamage(-1, -1);
+
         return ExecRet.SUCCESS;
     }
 }
@@ -373,10 +380,11 @@ public class EffectNode_Sleep : EffectNodeBase
     public override ExecRet Tick()
     {
         _timer += Time.deltaTime;
-        Debug.Log("sleeping");
+        //Debug.Log("sleeping");
         
         if (_timer > SleepTime)
         {
+            Debug.Log("sleep end");
             return ExecRet.SUCCESS;
         }
         return ExecRet.UPDATING;
@@ -385,5 +393,45 @@ public class EffectNode_Sleep : EffectNodeBase
     public override ExecRet Exec()
     {
         return ExecRet.UPDATING;
+    }
+}
+
+public class EffectNode_RunScript : EffectNodeBase
+{
+    public string ScriptName;
+
+    private LuaTable scriptEnv;
+    private Action luaExec;
+    public EffectNode_RunScript(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    {
+
+        ScriptName = paramstring;
+
+        scriptEnv = LuaMain.luaEnv.NewTable();
+
+        LuaTable meta = LuaMain.luaEnv.NewTable();
+        meta.Set("__index", LuaMain.luaEnv.Global);
+        scriptEnv.SetMetaTable(meta);
+        meta.Dispose();
+
+        LuaFunction func = LuaMain.luaEnv.LoadString(ScriptName, "script_" + ScriptName, scriptEnv);
+        //LuaDataMgr.setfenv(func, scriptEnv);
+        func.Call();
+
+        scriptEnv.Get("Exec", out luaExec);
+    }
+
+    public override ExecRet Tick()
+    {
+        return ExecRet.UPDATING;
+    }
+
+    public override ExecRet Exec()
+    {
+        if(luaExec != null)
+        {
+            luaExec();
+        }
+        return ExecRet.SUCCESS;
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Animations;
 
 public class BaseUnit : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class BaseUnit : MonoBehaviour
         transform.position = BattleManager.Instance.grid1.grid[nowGridPos.x, nowGridPos.y]._worldPos;
     }
 
+    [System.Serializable]
     public class Stats
     {
         public float hp;
@@ -24,6 +26,47 @@ public class BaseUnit : MonoBehaviour
     public void Init()
     {
         InitProperty();
+        InitAbility();
+    }
+
+    Dictionary<string, AbilityConfig> AbilityConfigMap = new Dictionary<string, AbilityConfig>();
+    public List<Ability> AbilityList = new List<Ability>();
+    private void InitAbility()
+    {
+
+        AbilityConfig Config = new AbilityConfig();
+        Config.effects.Add("7 Anim01 start atk");
+
+        Config.effects.Add("3 5");
+        //Config.effects.Add("5 50");
+        //Config.effects.Add("6 5");
+
+        {
+            Ability newAbility = new Ability();
+
+            newAbility.Config = Config;
+
+            AbilityList.Add(newAbility);
+
+        }
+
+
+        {
+            Ability newAbilityLua = new Ability_Lua("ability_panbian");
+
+            newAbilityLua.Config = Config;
+            AbilityList.Add(newAbilityLua);
+        }
+    }
+
+    public void UseAbility(int slot)
+    {
+        if(slot < 0 || slot >= AbilityList.Count)
+        {
+            return;
+        }
+
+        AbilityList[slot].UseAbility();
     }
 
     public void Tick(float dTime)
@@ -39,13 +82,14 @@ public class BaseUnit : MonoBehaviour
         if(stats.hp <= 0)
         {
             //chain
-            OnDie();
+            Debug.Log("die once");
+            BattleManager.Instance.DoDie(this);
         }
     }
 
     public void OnDie()
     {
-
+        BattleManager.Instance.AddEffect(eEffectType.AddBuff, "100001");
     }
 
 
