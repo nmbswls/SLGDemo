@@ -71,8 +71,22 @@ public class Unit : MonoBehaviour
                 return;
             }
 
-            //if(properties[i])
+            if (properties[i])
+            {
 
+            }
+
+           
+
+        }
+    }
+
+    private void GetBase(UnitProperty property)
+    {
+        if(property.name == "armor")
+        {
+            int ba = 0;
+            ba = 2; //获取敏捷
         }
     }
 
