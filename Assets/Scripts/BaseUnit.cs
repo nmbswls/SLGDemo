@@ -3,24 +3,32 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Unit : MonoBehaviour
+public class BaseUnit : MonoBehaviour
 {
+    public int unitEntIdx;
+
+    public Vector2Int nowGridPos;
+
+    public void AdjustPos()
+    {
+        transform.position = BattleManager.Instance.grid1.grid[nowGridPos.x, nowGridPos.y]._worldPos;
+    }
+
     public class Stats
     {
         public float hp;
         public float maxHp;
         public float atk;
+        public Int64 speed;
     }
-    // Start is called before the first frame update
-    void Start()
+    public void Init()
     {
-        
+        InitProperty();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void Tick(float dTime)
     {
-        
+        UpdateProperty();
     }
 
     public Stats stats = new Stats();
@@ -56,92 +64,144 @@ public class Unit : MonoBehaviour
         mUnitState |= state;
     }
 
+
     public int extraAtk;
 
 
-    List<ModifierInstance> modifierList = new List<ModifierInstance>();
 
 
-    public void UpdateModifier()
+    
+
+    public UnitProperty[] PropertyArray;
+
+    public void InitProperty()
     {
-        for(int i=0; i< properties.Count; i++)
+        PropertyArray = new UnitProperty[(int)ePropertyName.Max];
+        for(int i=1;i< PropertyArray.Length; i++)
         {
-            if (!properties[i].dirty)
+            //if(hasproperty)
+            PropertyArray[i] = new UnitProperty(this, (ePropertyName)i);
+        }
+    }
+    public UnitProperty FindProperty(ePropertyName name)
+    {
+        if(name >= ePropertyName.Max)
+        {
+            return null;
+        }
+        return PropertyArray[(int)name];
+    }
+
+
+    public void UpdateProperty()
+    {
+
+        List<int> modifiedProperty = new List<int>();
+
+        //第一版 无依赖关系
+        for(int i=0; i< PropertyArray.Length; i++)
+        {
+            if(PropertyArray[i] == null)
             {
-                return;
+                continue;
+            }
+            if (!PropertyArray[i].dirty)
+            {
+                continue;
             }
 
-            if (properties[i])
-            {
+            PropertyArray[i].CalcBase();
+            PropertyArray[i].CalcTotal();
 
-            }
-
-           
-
+            PropertyArray[i].dirty = false;
         }
     }
 
-    private void GetBase(UnitProperty property)
+    private Dictionary<ePropertyName, Int64> FixedValueDict = new Dictionary<ePropertyName, Int64>();
+    private Int64 GetFixedValue(ePropertyName name)
     {
-        if(property.name == "armor")
+        if (FixedValueDict.ContainsKey(name))
         {
-            int ba = 0;
-            ba = 2; //获取敏捷
+            return FixedValueDict[name];
         }
+        return -1;
     }
 
-    List<UnitProperty> properties = new List<UnitProperty>();
+    public List<ModifierInstance> ModifierList = new List<ModifierInstance>();
 
+    public Dictionary<string, ModifierConfig> ModifierConfigMap = new Dictionary<string, ModifierConfig>();
 
     public void AddModifier(string name)
     {
         //从map里寻找
-        ModifierConfig config = new ModifierConfig();
+        if (!ModifierConfigMap.ContainsKey(name))
+        {
+            return;
+        }
+
+        ModifierConfig config = ModifierConfigMap[name];
         ModifierInstance modifier = new ModifierInstance(config);
         List<ModifierEffectConfig> effects = config.ModifierEffects;
+
         for (int i = 0; i < effects.Count; i++)
         {
-            ModifierEffectInstance effectInst = new ModifierEffectInstance();
-            effectInst.config = effects[i];
-            effectInst.parent = modifier;
-            modifier.Effects.Add(effectInst);
-
-            properties[i].extra.Add(effectInst);
-            properties[i].dirty = true;
+            UnitProperty toMod = FindProperty(effects[i].propertyName);
+            if (toMod == null)
+            {
+                continue;
+            }
+            toMod.AddExtraValue(modifier.InstId, effects[i]);
         }
     }
 
+    public void RemoveModifier(string name)
+    {
+
+        ModifierInstance toRemove = null;
+        for (int i= ModifierList.Count-1; i >= 0; i--)
+        {
+            if(ModifierList[i].Config.ModifierName == name)
+            {
+                toRemove = ModifierList[i];
+                ModifierList.RemoveAt(i);
+            }
+        }
+        if(toRemove != null)
+        {
+            List<ModifierEffectConfig> effects = toRemove.Config.ModifierEffects;
+            for (int i = 0; i < effects.Count; i++)
+            {
+                UnitProperty toMod = FindProperty(effects[i].propertyName);
+                if (toMod == null)
+                {
+                    continue;
+                }
+                toMod.RemoveExtraValue(toRemove.InstId);
+            }
+        }
+    }
 }
 
 
-public class UnitProperty
-{
-    public string name;
-    public int idx;
-    public List<ModifierEffectInstance> extra = new List<ModifierEffectInstance>();
-    public bool dirty;
-    public int CalcType; //0 加法 1 乘法 2 线性累乘
-    public float calculatedValue;
-}
 
-public class UnitIntProperty : UnitProperty
-{
-
-}
 
 
 public class ModifierInstance
 {
+    public int InstId;
     public ModifierConfig Config;
     public int Duration;
     public int StackCount;
     public bool isFromAura;
 
-    public List<ModifierEffectInstance> Effects = new List<ModifierEffectInstance>();
+
+
+    //public List<ModifierEffectInstance> Effects = new List<ModifierEffectInstance>();
 
     public ModifierInstance(ModifierConfig config)
     {
         this.Config = config;
+        InstId = 100;
     }
 }
 
@@ -153,8 +213,8 @@ public class ModifierEffectInstance
 
 public class ModifierEffectConfig
 {
-    public int type;
-    public string value;
+    public ePropertyName propertyName;
+    public Int64 value;
 }
 
 public class ModifierConfig

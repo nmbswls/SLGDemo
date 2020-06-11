@@ -12,19 +12,22 @@ public class BattleManager : MonoBehaviour
     private Camera mCamera;
 
 
-    public GameObject pawn;
-    private Vector2Int nowPawnPos;
+    public BaseUnit pawn;
+    //private Vector2Int nowPawnPos;
 
     private int NowRound = 0;
 
     public static BattleManager Instance;
+    public GameObject BaseUnitPrefab;
 
-    public List<FakeActor> fakeActors = new List<FakeActor>();
-    public class FakeActor 
-    {
-        public int id;
-        public int speed;
-    }
+
+    public List<BaseUnit> BattleUnits = new List<BaseUnit>();
+    //public List<FakeActor> fakeActors = new List<FakeActor>();
+    //public class FakeActor 
+    //{
+    //    public int id;
+    //    public int speed;
+    //}
 
 
     // Start is called before the first frame update
@@ -37,9 +40,9 @@ public class BattleManager : MonoBehaviour
 
         mCamera = Camera.main;
 
-        //InitBattle();
-        nowPawnPos = grid1.GetCenter();
-        pawn.transform.position = grid1.GetWorldPos(nowPawnPos.x, nowPawnPos.y);
+        InitBattle();
+        //nowPawnPos = grid1.GetCenter();
+        //pawn.transform.position = grid1.GetWorldPos(nowPawnPos.x, nowPawnPos.y);
     }
 
 
@@ -62,23 +65,42 @@ public class BattleManager : MonoBehaviour
     }
 
 
+    bool Locked
+    {
+        get { return lockedCnt > 0; }
+    }
+    int lockedCnt;
+    public void Lock()
+    {
+        lockedCnt++;
+    }
+
+    public void Unlock()
+    {
+        if(lockedCnt > 0)
+        {
+            lockedCnt--;
+        }
+    }
+
+
     #region round
 
     public class ActionNode : System.IComparable<ActionNode>
     {
-        public FakeActor battleActor;
+        public BaseUnit battleActor;
         public int prevIdx;
         public int nowIdx;
 
         public int CompareTo(ActionNode obj)  //实现该比较方法即可
         {
-            return battleActor.speed.CompareTo(obj.battleActor.speed);
+            return battleActor.stats.speed.CompareTo(obj.battleActor.stats.speed);
         }
     }
 
     List<ActionNode> NowRoundActionSeq;
     List<ActionNode> NextRoundActionSeq;
-    FakeActor nowTurnActor;
+    BaseUnit nowTurnActor;
     bool isPlayerTurn;
 
     void InitBattle()
@@ -86,19 +108,32 @@ public class BattleManager : MonoBehaviour
 
         for (int i = 0; i < 5; i++)
         {
-            FakeActor fa = new FakeActor();
-            fa.id = i;
-            fa.speed = Random.Range(1, 100);
-            fakeActors.Add(fa);
+            GameObject go = Instantiate(BaseUnitPrefab);
+            BaseUnit unit = go.GetComponent<BaseUnit>();
+            unit.unitEntIdx = i;
+            unit.stats.maxHp = 100;
+            unit.stats.hp = 100;
+            unit.stats.speed = UnityEngine.Random.Range(10,20);
+            if(i == 0)
+            {
+                unit.nowGridPos = grid1.GetCenter();
+            }
+            else
+            {
+                unit.nowGridPos = new Vector2Int(UnityEngine.Random.Range(50, 70), UnityEngine.Random.Range(50, 70));
+            }
+            unit.AdjustPos();
+            BattleUnits.Add(unit);
         }
 
+        pawn = BattleUnits[0];
 
         NextRoundActionSeq = new List<ActionNode>();
 
-        for (int i = 0; i < fakeActors.Count; i++)
+        for (int i = 0; i < BattleUnits.Count; i++)
         {
             ActionNode newNode = new ActionNode();
-            newNode.battleActor = fakeActors[i];
+            newNode.battleActor = BattleUnits[i];
             NextRoundActionSeq.Add(newNode);
         }
         NextRoundActionSeq.Sort();
@@ -132,7 +167,7 @@ public class BattleManager : MonoBehaviour
 
     public void PlayerFinishTurn()
     {
-        if (locked)
+        if (Locked)
         {
             return;
         }
@@ -156,10 +191,10 @@ public class BattleManager : MonoBehaviour
         NowRoundActionSeq.RemoveAt(0);
         nowTurnActor = frontNode.battleActor;
 
-        Debug.Log(nowTurnActor.id);
+        Debug.Log(nowTurnActor.unitEntIdx);
 
 
-        if (nowTurnActor.id == 0)
+        if (nowTurnActor.unitEntIdx == 0)
         {
             isPlayerTurn = true;
         }
@@ -188,13 +223,11 @@ public class BattleManager : MonoBehaviour
 
     #region acion
 
-    bool isDoingAction = false;
     List<ActionExecutor> pendingActions = new List<ActionExecutor>();
     private void TickAction()
     {
         if (pendingActions.Count == 0)
         {
-            isDoingAction = false;
             return;
         }
         ActionExecutor exec = pendingActions[0];
@@ -230,7 +263,7 @@ public class BattleManager : MonoBehaviour
     #endregion
 
 
-    bool locked;
+    
 
     Ray ray;
     RaycastHit hit;
@@ -247,7 +280,7 @@ public class BattleManager : MonoBehaviour
             //{
             //    return;
             //}
-            if (locked)
+            if (Locked)
             {
                 return;
             }
@@ -259,7 +292,7 @@ public class BattleManager : MonoBehaviour
             {
                 Vector2Int pos = grid1.GetFromPosition(hit.point);
 
-                List<Vector2Int> path = grid1.FindPath(nowPawnPos, pos);
+                List<Vector2Int> path = grid1.FindPath(pawn.nowGridPos, pos);
 
                 if (path == null)
                 {
@@ -271,11 +304,12 @@ public class BattleManager : MonoBehaviour
                     Debug.Log(path[i].x + " " + path[i].y);
                 }
 
-                nowPawnPos = pos;
+                pawn.nowGridPos = pos;
 
                 grid1.ShowPath(path);
 
-                StartCoroutine(GoPath(path));
+                StartGoPath(pawn, path);
+                //StartCoroutine(GoPath(path));
                 //pawn.transform.position = grid[pos.x, pos.y]._worldPos;
 
                 //mark.transform.position = hit.point;
@@ -286,7 +320,7 @@ public class BattleManager : MonoBehaviour
 
     IEnumerator GoPath(List<Vector2Int> path)
     {
-        locked = true;
+        Lock();
 
         if (path.Count == 0)
         {
@@ -310,14 +344,19 @@ public class BattleManager : MonoBehaviour
                 yield return null;
             }
         }
-        locked = false;
-        path.Clear();
+        Unlock();
         yield break;
     }
 
 
 
-
+    public void StartGoPath(BaseUnit unit, List<Vector2Int> path)
+    {
+        ActionExecutor exec = new ActionExecutor();
+        exec.AddEffectMove(unit, path);
+        exec.AddEffect(eEffectType.Animation, "animanim_002");
+        pendingActions.Add(exec);
+    }
 
 
 
@@ -340,9 +379,11 @@ public class BattleManager : MonoBehaviour
 
     }
 
-    public void DoDie()
-    {
+    public List<BaseUnit> DyingQueue = new List<BaseUnit>();
 
+    public void DoDie(BaseUnit unit)
+    {
+        DyingQueue.Add(unit);
     }
 
     #endregion
@@ -354,25 +395,3 @@ public class BattleManager : MonoBehaviour
 
 }
 
-
-//public delegate void ApplyEffect();
-
-//public class ActionExecuter
-//{
-//    public bool isDone;
-//    public ApplyEffect callback;
-
-
-//    public void stop()
-//    {
-//        if (callback != null)
-//        {
-//            callback;
-//        }
-//    }
-
-//    public void start()
-//    {
-
-//    }
-//}

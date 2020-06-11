@@ -36,6 +36,16 @@ public class ActionExecutor
             effectList.Add(newNode);
         }
     }
+
+    public void AddEffectMove(BaseUnit unit, List<Vector2Int> path)
+    {
+        EffectNodeBase newNode = new EffectNode_Move(this, eEffectType.Move, unit, path);
+        if (newNode != null)
+        {
+            effectList.Add(newNode);
+        }
+    }
+
     public void InsertEffect<T>(int idx, eEffectType eid, string paramstring)
     {
         EffectNodeBase newNode = createNode(eid, paramstring);
@@ -208,6 +218,75 @@ public class EffectNode_Delay : EffectNodeBase
 
 
 }
+
+
+public class EffectNode_Move : EffectNodeBase
+{
+    public List<Vector2Int> path;
+    public BaseUnit unit;
+
+    int _pathIdx = 0;
+    Grid _grid;
+
+    public EffectNode_Move(ActionExecutor owner, eEffectType eid, BaseUnit unit, List<Vector2Int> path) : base(owner, eid, "")
+    {
+        this.unit = unit;
+        this.path = path;
+    }
+
+    public override ExecRet Tick()
+    {
+        if(_pathIdx >= path.Count)
+        {
+            BattleManager.Instance.Unlock();
+            return ExecRet.SUCCESS;
+        }
+
+
+        Vector3 targetGridWorldPos = _grid.GetWorldPos(path[_pathIdx].x, path[_pathIdx].y);
+
+        Vector3 diff = (targetGridWorldPos - unit.transform.position);
+        Vector3 moveDist = diff.normalized * 3f * Time.deltaTime;
+
+
+        if (moveDist.magnitude >= diff.magnitude)
+        {
+            unit.transform.position = targetGridWorldPos;
+            ++_pathIdx;
+        }
+        else
+        {
+            unit.transform.position += moveDist;
+        }
+        return ExecRet.UPDATING;
+
+    }
+
+    public override ExecRet Exec()
+    {
+
+        if (unit == null || path == null || path.Count == 0)
+        {
+            return ExecRet.FAIL;
+        }
+
+        //if (unit.CanMove())
+        //{
+
+        //}
+
+        BattleManager.Instance.Lock();
+        _pathIdx = 0;
+        _grid = BattleManager.Instance.grid1;
+
+        return ExecRet.UPDATING;
+    }
+
+
+}
+
+
+
 
 public class EffectNode_Damage : EffectNodeBase
 {
