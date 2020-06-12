@@ -60,9 +60,16 @@ public class BattleManager : MonoBehaviour
             pawn.UseAbility(1);
         }
 
+        TickAbility();
         TickAction();
         
         
+    }
+
+
+    private void TickAbility()
+    {
+
     }
 
 
@@ -230,6 +237,17 @@ public class BattleManager : MonoBehaviour
 
     public List<ActionExecutor> pendingActions = new List<ActionExecutor>();
     //public ActionExecutor HandlingAction = null;
+
+    public void AddEffect(EffectNodeBase newNode)
+    {
+        if (pendingActions.Count == 0)
+        {
+            pendingActions.Add(new ActionExecutor());
+        }
+
+
+        pendingActions[0].AddEffectNode(newNode);
+    }
 
 
     public void AddEffect(eEffectType name, string paramstring)

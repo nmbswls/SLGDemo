@@ -92,7 +92,6 @@ public class ActionExecutor
             case eEffectType.Damage:
                 if(paramList.Length != 3)
                 {
-                    Debug.Log("not 3");
                     break;
                 }
                 Int64 source = Int64.Parse(paramList[0]);
@@ -367,12 +366,13 @@ public class EffectNode_AddBuff : EffectNodeBase
 public class EffectNode_Animation : EffectNodeBase
 {
     public string AnimClipName;
+    public BaseUnit animTarget;
 
-    public EffectNode_Animation(ActionExecutor owner, string paramstring) : base(owner, eEffectType.Animation)
+    public EffectNode_Animation(ActionExecutor owner, BaseUnit animTarget, string animName) : base(owner, eEffectType.Animation)
     {
 
-        string[] parray = paramstring.Split(',');
-        AnimClipName = parray[0];
+        AnimClipName = animName;
+        this.animTarget = animTarget;
     }
 
     public override ExecRet Tick()

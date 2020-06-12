@@ -29,6 +29,9 @@ public class BaseUnit : MonoBehaviour
         InitAbility();
     }
 
+
+    public AbilityManager mAbilityManager;
+
     Dictionary<string, AbilityConfig> AbilityConfigMap = new Dictionary<string, AbilityConfig>();
     public List<Ability> AbilityList = new List<Ability>();
     private void InitAbility()
