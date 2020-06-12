@@ -1,6 +1,7 @@
 ﻿
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -13,9 +14,17 @@ public interface SceneClickableActor
 	void startDrag(Vector3 posDeltaInScreenView);
 
 	void endDrag(Vector3 posInScreenView);
+
+	void onRightClick(Vector3 posInScreenView);
+
+	void onLongClick(Vector3 posInScreenView);
+
+	bool hasClickEvent();
+
+	bool hasLongClickEvent();
 }
 
-public class InputManager
+public class InputManager : MonoBehaviour
 {
 
 	public enum eSceneEventResult
@@ -24,7 +33,7 @@ public class InputManager
 		Continue,
 	}
 
-	
+	public static eSceneEventResult FieldEventResult;
 
 	private Camera mCamera;
 	
@@ -54,9 +63,12 @@ public class InputManager
 	}
 	//拖拽阈值
 	public static float dragThreshold = 0.1f;
+	public static float longClickThreshold = 0.7f;
 
 	//鼠标按下位置 屏幕坐标系
 	private Vector3 mMouseDownPos;
+
+	float mMouseDownTime;
 	//上次拖拽时位置
 	Vector3 lastDragPos;
 	//被点击物体列表
@@ -67,7 +79,9 @@ public class InputManager
 	{
 		NONE,
 		CLICK,
+		LONGCLICK,
 		DRAG,
+		RIGHTCLICK,
 	}
 	MouseState nowMode = MouseState.NONE;
 
@@ -82,7 +96,6 @@ public class InputManager
 		}
 		return false;
 #else
-		//Debug.Log(Stage.inst.touchTarget.gameObject.name);	
 		if (EventSystem.current.IsPointerOverGameObject())
 		{
 			return true;
@@ -113,6 +126,7 @@ public class InputManager
 		RaycastHit[] hits = Physics.RaycastAll(ray, Mathf.Infinity);
 		if (hits.Length > 1){
 			mMouseDownPos = Input.mousePosition;
+			mMouseDownTime = Time.time;
 			nowClickedList = new List<GameObject>();
 			List<RaycastHit> hitsList = new List<RaycastHit>(hits);
 			//从前往后排序
@@ -128,6 +142,7 @@ public class InputManager
 		else if (hits.Length > 0)
 		{
 			mMouseDownPos = Input.mousePosition;
+			mMouseDownTime = Time.time;
 			nowClickedList = new List<GameObject>() { hits[0].collider.gameObject };
 			nowMode = MouseState.CLICK;
 		}
@@ -146,6 +161,33 @@ public class InputManager
 		Vector3 nowPos = Input.mousePosition;
 		Vector2 mouseMove = (nowPos - mMouseDownPos);
 		if (nowMode == MouseState.CLICK){
+
+			if(Time.time - mMouseDownTime > longClickThreshold)
+			{
+				nowMode = MouseState.LONGCLICK;
+				//触发回调
+				if (nowClickedList == null || nowClickedList.Count == 0)
+				{
+					return;
+				}
+				SceneClickableActor cp = nowClickedList[0].GetComponentInParent<SceneClickableActor>();
+				if(cp == null)
+				{
+					return;
+				}
+
+				if (!cp.hasLongClickEvent())
+				{
+					//目标没有长按事件 退化为普通点击
+					nowMode = MouseState.CLICK;
+					mMouseDownTime = Time.time;
+				}
+				else
+				{
+					nowClickedList[0].GetComponentInParent<SceneClickableActor>().onLongClick(Input.mousePosition);
+					return;
+				}
+			}
 			//超过阀值 将变为拖动
 			if (mouseMove.magnitude < dragThreshold)
 				return;
@@ -175,59 +217,47 @@ public class InputManager
 			return;
 		}
 
-		//if (Input.GetMouseButtonUp(0))
-		//{
-		//	if (nowMode == MouseState.NONE)
-		//	{
-
-		//	}
-		//	else if (nowMode == MouseState.CLICK)
-		//	{
-		//		if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].GetComponentInParent<ClickableSprite>() == null)
-		//		{
-		//			//无法回调
-
-		//		}
-		//		else
-		//		{
-
-		//			{
-		//				for (int i = 0; i < nowClickedList.Count; i++)
-		//				{
-		//					ClickableEventlistener2D cp = nowClickedList[i].GetComponentInParent<ClickableEventlistener2D>();
-		//					if (cp == null || !cp.hasClickEvent())
-		//					{
-		//						continue;
-		//					}
-		//					if (cp != null && cp.hasClickEvent())
-		//					{
-		//						cp.onClick(Input.mousePosition);
-		//						if (FieldEventResult == eFieldEventResult.Block)
-		//						{
-		//							break;
-		//						}
-		//					}
-		//				}
-
-		//			}
-		//			FieldEventResult = eFieldEventResult.Block;
-
-
-		//		}
-		//	}
-		//	else if (nowMode == MouseState.DRAG)
-		//	{
-		//		if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].GetComponentInParent<SceneClickableActor>() == null)
-		//		{
-		//			//无法回调
-		//		}
-		//		else
-		//		{
-		//			nowClickedList[0].GetComponentInParent<SceneClickableActor>().endDrag(Input.mousePosition);
-		//		}
-		//	}
-		//	nowMode = MouseState.NONE;
-		//}
+		
+		if (nowMode == MouseState.NONE || nowMode == MouseState.LONGCLICK)
+		{
+			return;
+		}
+		
+		if (nowMode == MouseState.CLICK)
+		{
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].GetComponentInParent<SceneClickableActor>() == null)
+			{
+				nowMode = MouseState.NONE;
+				return;
+			}
+			
+			for (int i = 0; i < nowClickedList.Count; i++)
+			{
+				SceneClickableActor cp = nowClickedList[i].GetComponentInParent<SceneClickableActor>();
+				if (cp == null || !cp.hasClickEvent())
+				{
+					continue;
+				}
+				if (cp != null && cp.hasClickEvent())
+				{
+					cp.onClick(Input.mousePosition);
+					if (FieldEventResult == eSceneEventResult.Block)
+					{
+						break;
+					}
+				}
+			}
+			FieldEventResult = eSceneEventResult.Block;
+		}
+		else if (nowMode == MouseState.DRAG)
+		{
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].GetComponentInParent<SceneClickableActor>() == null)
+			{
+				nowMode = MouseState.NONE;
+				return;
+			}
+			nowClickedList[0].GetComponentInParent<SceneClickableActor>().endDrag(Input.mousePosition);
+		}
 	}
 }
 public class ClickableEventlistener2D : MonoBehaviour, SceneClickableActor
@@ -237,6 +267,8 @@ public class ClickableEventlistener2D : MonoBehaviour, SceneClickableActor
 
 	// 鼠标点击事件
 	public event FieldEventProxy ClickEvent;
+
+	public event FieldEventProxy LongClickEvent;
 	//拖动
 	public event FieldEventProxy BeginDragEvent;
 
@@ -245,6 +277,22 @@ public class ClickableEventlistener2D : MonoBehaviour, SceneClickableActor
 	public event FieldEventProxy EndDragEvent;
 
 	public void onClick(Vector3 pos)
+	{
+		if (interval > 0)
+			return;
+		if (ClickEvent != null)
+			ClickEvent(this.gameObject, pos);
+	}
+
+	public void onLongClick(Vector3 pos)
+	{
+		if (interval > 0)
+			return;
+		if (LongClickEvent != null)
+			LongClickEvent(this.gameObject, pos);
+	}
+
+	public void onRightClick(Vector3 pos)
 	{
 		if (interval > 0)
 			return;
@@ -298,4 +346,17 @@ public class ClickableEventlistener2D : MonoBehaviour, SceneClickableActor
 			return false;
 		}
 	}
+	public bool hasLongClickEvent()
+	{
+		if (LongClickEvent != null)
+		{
+			return LongClickEvent.GetInvocationList().Length > 0;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	
 }

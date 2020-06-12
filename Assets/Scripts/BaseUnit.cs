@@ -6,7 +6,7 @@ using UnityEngine.Animations;
 
 public class BaseUnit : MonoBehaviour
 {
-    public int unitEntIdx;
+    public Int64 InstId;
 
     public Vector2Int nowGridPos;
 
@@ -35,9 +35,9 @@ public class BaseUnit : MonoBehaviour
     {
 
         AbilityConfig Config = new AbilityConfig();
-        Config.effects.Add("7 Anim01 start atk");
+        Config.effects.Add("7,Anim01 start atk");
 
-        Config.effects.Add("3 5");
+        Config.effects.Add("3,2");
         //Config.effects.Add("5 50");
         //Config.effects.Add("6 5");
 

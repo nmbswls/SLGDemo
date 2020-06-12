@@ -20,6 +20,8 @@ public enum eEffectType
     Damage = 5,
     AddBuff = 6,
     Animation = 7,
+    RunScript = 8,
+    Max = 9,
 }
 
 public class ActionExecutor
@@ -30,6 +32,16 @@ public class ActionExecutor
     public bool isError;
 
     public List<EffectNodeBase> effectList = new List<EffectNodeBase>();
+
+
+    public void AddEffectNode(EffectNodeBase newNode)
+    {
+        if (newNode != null)
+        {
+            effectList.Add(newNode);
+        }
+    }
+
     //eEffectType eid, string paramstring
     public void AddEffect(eEffectType eid, string paramstring)
     {
@@ -61,22 +73,32 @@ public class ActionExecutor
     private EffectNodeBase createNode(eEffectType eid, string paramstring)
     {
         EffectNodeBase newNode = null;
+        string[] paramList = paramstring.Split(',');
         switch (eid)
         {
             case eEffectType.Delay:
-                newNode = new EffectNode_Delay(this, eid, paramstring);
+                float time = float.Parse(paramstring);
+                newNode = new EffectNode_Delay(this, time);
                 break;
             case eEffectType.AddBuff:
-                newNode = new EffectNode_AddBuff(this, eid, paramstring);
+                newNode = new EffectNode_AddBuff(this,paramstring);
                 break;
             case eEffectType.Animation:
-                newNode = new EffectNode_Animation(this, eid, paramstring);
+                newNode = new EffectNode_Animation(this, paramstring);
                 break;
             case eEffectType.Sleep:
-                newNode = new EffectNode_Sleep(this, eid, paramstring);
+                newNode = new EffectNode_Sleep(this,paramstring);
                 break;
             case eEffectType.Damage:
-                newNode = new EffectNode_Damage(this, eid, paramstring);
+                if(paramList.Length != 3)
+                {
+                    Debug.Log("not 3");
+                    break;
+                }
+                Int64 source = Int64.Parse(paramList[0]);
+                Int64 target = Int64.Parse(paramList[1]);
+                Int64 Damage = Int64.Parse(paramList[2]);
+                newNode = new EffectNode_Damage(this, source, target, Damage);
                 break;
             default:
                 break;
@@ -84,6 +106,7 @@ public class ActionExecutor
         return newNode;
     }
 
+   
     
 
     public void Tick()
@@ -151,11 +174,9 @@ public class EffectNodeBase
     public bool isDone;
 
     public eEffectType eid;
-    public string ename = "";
-    string paramstring = "";
     //public EffectCallback callback;
 
-    public EffectNodeBase(ActionExecutor owner, eEffectType eid, string paramstring)
+    public EffectNodeBase(ActionExecutor owner, eEffectType eid)
     {
         this.owner = owner;
         this.eid = eid;
@@ -177,16 +198,14 @@ public class EffectNodeBase
 
 public class EffectNode_Delay : EffectNodeBase
 {
-    public float delaySeconds = 0f;
+    public float delaySec = 0f;
     
     float timer;
     bool triggered;
 
-    public EffectNode_Delay(ActionExecutor owner, eEffectType eid, string paramstring): base(owner, eid, paramstring)
+    public EffectNode_Delay(ActionExecutor owner, float delaySec): base(owner, eEffectType.Delay)
     {
-
-        string[] parray = paramstring.Split(';');
-        delaySeconds = float.Parse(parray[0]);
+        this.delaySec = delaySec;
     }
 
     public override ExecRet Tick()
@@ -195,7 +214,7 @@ public class EffectNode_Delay : EffectNodeBase
         //Debug.Log("delay");
         if (triggered)
         {
-            if (timer > delaySeconds)
+            if (timer > delaySec)
             {
                 owner.AddEffect(eEffectType.Damage, "1000");
                 owner.AddEffect(eEffectType.AddBuff, "10111");
@@ -204,12 +223,12 @@ public class EffectNode_Delay : EffectNodeBase
             }
             return ExecRet.UPDATING;
         }
-        if (timer > delaySeconds * 0.5f)
+        if (timer > delaySec * 0.5f)
         {
             //ActionExecutor exec = new ActionExecutor();
             //exec.AddEffect(eEffectType.Sleep,"2");
 
-            BattleManager.Instance.AddEffectImmediate(eEffectType.Sleep, "2");
+            //BattleManager.Instance.AddEffectImmediate(eEffectType.Sleep, "2");
             triggered = true;
         }
         return ExecRet.UPDATING;
@@ -232,7 +251,7 @@ public class EffectNode_Move : EffectNodeBase
     int _pathIdx = 0;
     Grid _grid;
 
-    public EffectNode_Move(ActionExecutor owner, eEffectType eid, BaseUnit unit, List<Vector2Int> path) : base(owner, eid, "")
+    public EffectNode_Move(ActionExecutor owner, eEffectType eid, BaseUnit unit, List<Vector2Int> path) : base(owner, eid)
     {
         this.unit = unit;
         this.path = path;
@@ -294,13 +313,17 @@ public class EffectNode_Move : EffectNodeBase
 
 public class EffectNode_Damage : EffectNodeBase
 {
-    public float Damage;
 
-    public EffectNode_Damage(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    public Int64 Damage;
+    public Int64 Source;
+    public Int64 Target;
+
+    public EffectNode_Damage(ActionExecutor owner, Int64 source, Int64 target, Int64 damage) : base(owner, eEffectType.Damage)
     {
 
-        string[] parray = paramstring.Split(';');
-        Damage = float.Parse(parray[0]);
+        Damage = damage;
+        Source = source;
+        Target = target;
     }
 
     public override ExecRet Tick()
@@ -312,7 +335,7 @@ public class EffectNode_Damage : EffectNodeBase
     {
         Debug.Log("damage: " + Damage);
 
-        BattleManager.DoDamage(-1, -1);
+        BattleManager.DoDamage(-1, -1, Damage);
 
         return ExecRet.SUCCESS;
     }
@@ -322,10 +345,10 @@ public class EffectNode_AddBuff : EffectNodeBase
 {
     public int BuffId;
 
-    public EffectNode_AddBuff(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    public EffectNode_AddBuff(ActionExecutor owner, string paramstring) : base(owner, eEffectType.AddBuff)
     {
 
-        string[] parray = paramstring.Split(';');
+        string[] parray = paramstring.Split(',');
         BuffId = int.Parse(parray[0]);
     }
 
@@ -345,10 +368,10 @@ public class EffectNode_Animation : EffectNodeBase
 {
     public string AnimClipName;
 
-    public EffectNode_Animation(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    public EffectNode_Animation(ActionExecutor owner, string paramstring) : base(owner, eEffectType.Animation)
     {
 
-        string[] parray = paramstring.Split(';');
+        string[] parray = paramstring.Split(',');
         AnimClipName = parray[0];
     }
 
@@ -370,10 +393,10 @@ public class EffectNode_Sleep : EffectNodeBase
 
     float _timer;
 
-    public EffectNode_Sleep(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    public EffectNode_Sleep(ActionExecutor owner, string paramstring) : base(owner, eEffectType.Sleep)
     {
 
-        string[] parray = paramstring.Split(';');
+        string[] parray = paramstring.Split(',');
         SleepTime = 5f;
     }
 
@@ -402,7 +425,7 @@ public class EffectNode_RunScript : EffectNodeBase
 
     private LuaTable scriptEnv;
     private Action luaExec;
-    public EffectNode_RunScript(ActionExecutor owner, eEffectType eid, string paramstring) : base(owner, eid, paramstring)
+    public EffectNode_RunScript(ActionExecutor owner, string paramstring) : base(owner,eEffectType.RunScript)
     {
 
         ScriptName = paramstring;

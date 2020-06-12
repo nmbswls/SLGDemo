@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -11,7 +12,7 @@ public class BattleManager : MonoBehaviour
     public Grid grid1;
     private Camera mCamera;
 
-
+    public GameObject TurnMark;
     public BaseUnit pawn;
     //private Vector2Int nowPawnPos;
 
@@ -22,6 +23,7 @@ public class BattleManager : MonoBehaviour
 
 
     public List<BaseUnit> BattleUnits = new List<BaseUnit>();
+    public Dictionary<Int64, BaseUnit> AllUnitDict = new Dictionary<long, BaseUnit>();
     //public List<FakeActor> fakeActors = new List<FakeActor>();
     //public class FakeActor 
     //{
@@ -59,6 +61,8 @@ public class BattleManager : MonoBehaviour
         }
 
         TickAction();
+        
+        
     }
 
 
@@ -107,7 +111,7 @@ public class BattleManager : MonoBehaviour
         {
             GameObject go = Instantiate(BaseUnitPrefab);
             BaseUnit unit = go.GetComponent<BaseUnit>();
-            unit.unitEntIdx = i;
+            unit.InstId = i;
             unit.stats.maxHp = 100;
             unit.stats.hp = 100;
             unit.stats.speed = UnityEngine.Random.Range(10,20);
@@ -189,30 +193,33 @@ public class BattleManager : MonoBehaviour
         NowRoundActionSeq.RemoveAt(0);
         nowTurnActor = frontNode.battleActor;
 
-        Debug.Log(nowTurnActor.unitEntIdx);
+        Debug.Log(nowTurnActor.InstId);
+
+        if (nowTurnActor != null)
+        {
+            TurnMark.transform.SetParent(nowTurnActor.transform,true);
+            TurnMark.transform.localPosition = Vector3.zero;
+        }
+        isPlayerTurn = true;
+
+        pawn = nowTurnActor;
 
 
-        if (nowTurnActor.unitEntIdx == 0)
-        {
-            isPlayerTurn = true;
-        }
-        else
-        {
-            isPlayerTurn = false;
-        }
+        //if (nowTurnActor.InstId == 0)
+        //{
+        //    isPlayerTurn = true;
+        //}
+        //else
+        //{
+        //    isPlayerTurn = false;
+        //}
 
-        if (!isPlayerTurn)
-        {
-            Debug.Log("ai round start");
-            //抛出ai事件
-            StartCoroutine(AIAct());
-        }
     }
 
 
     IEnumerator AIAct()
     {
-        yield return new WaitForSeconds(2);
+        yield return new WaitForSeconds(0.2f);
         Debug.Log("ai round finish");
         NextRoleAct();
     }
@@ -385,12 +392,23 @@ public class BattleManager : MonoBehaviour
     #region 常用函数
 
 
-    public static void DoDamage(int source, int target)
+    public static void DoDamage(Int64 source, Int64 target, Int64 damage, Int64 mask = 0)
     {
+
+
         for(int i=1; i< Instance.BattleUnits.Count; i++)
         {
             BaseUnit unit = Instance.BattleUnits[i];
-            unit.DoDamage(100);
+            unit.DoDamage(damage);
+        }
+    }
+
+    public static void DoDamage(Int64 source, List<Int64> target, Int64 damage, Int64 mask = 0)
+    {
+        for (int i = 1; i < Instance.BattleUnits.Count; i++)
+        {
+            BaseUnit unit = Instance.BattleUnits[i];
+            unit.DoDamage(damage);
         }
     }
 
