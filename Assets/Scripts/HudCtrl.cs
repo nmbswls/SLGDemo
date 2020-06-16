@@ -9,6 +9,7 @@ public class HudCtrl : MonoBehaviour
     public Button AttackBtn;
     public Button NextTurnBtn;
     public Button MoveBtn;
+    public Text AttackBtnTxt;
 
     public Text NowTurnInfo;
 
@@ -24,10 +25,19 @@ public class HudCtrl : MonoBehaviour
         NextTurnBtn = transform.Find("NextTurnBtn").GetComponent<Button>();
         MoveBtn = transform.Find("MoveBtn").GetComponent<Button>();
 
+        AttackBtnTxt = AttackBtn.GetComponentInChildren<Text>();
+
         NowTurnInfo = transform.Find("NowTurnInfo").GetComponent<Text>();
 
         AttackBtn.onClick.AddListener(delegate()
         {
+
+            if (isAttackActive)
+            {
+                SwitchAttackBtn(false);
+                return;
+            }
+
             BattleManager.Instance.StartChooseTarget();
 
         });
@@ -43,5 +53,18 @@ public class HudCtrl : MonoBehaviour
 
             BattleManager.Instance.ConfirmMove();
         });
+    }
+    private bool isAttackActive = false;
+    public void SwitchAttackBtn(bool active)
+    {
+        isAttackActive = active;
+        if (isAttackActive)
+        {
+            AttackBtnTxt.text = "取消";
+        }
+        else
+        {
+            AttackBtnTxt.text = "攻击";
+        }
     }
 }

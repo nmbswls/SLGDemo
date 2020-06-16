@@ -27,6 +27,8 @@ public class BattleManager : MonoBehaviour
 
 
     private SceneClickable gridListener;
+
+    public HudCtrl hudCtrl;
     //public List<FakeActor> fakeActors = new List<FakeActor>();
     //public class FakeActor 
     //{
@@ -70,26 +72,37 @@ public class BattleManager : MonoBehaviour
         TickMove();
     }
 
-    public int hudState = 0;
+
+    public enum eHudState
+    {
+        Normal,
+        Attack,
+    }
+
+    public eHudState hudState = eHudState.Normal;
     public Ability nowAbility;
     public void StartChooseTarget()
     {
         nowAbility = nowTurnActor.AbilityList[0];
         if ((nowAbility.Config.targetType & 4) != 0)
         {
-            hudState = 1;
+            hudState = eHudState.Attack;
+            hudCtrl.SwitchAttackBtn(true);
+            //ShowAtkRange;
         }
     }
 
     public void OnActorClick(BaseUnit target)
     {
-        if (hudState == 0)
+        if (hudState == eHudState.Normal)
         {
             Debug.Log("show info");
         }
-        else if (hudState == 1)
+        else if (hudState == eHudState.Attack)
         {
+            //获取target  进行筛选是否可行
             nowAbility.UseAbility();
+            hudCtrl.SwitchAttackBtn(false);
         }
     }
 
@@ -309,7 +322,10 @@ public class BattleManager : MonoBehaviour
 
     private void HandleMouseClick(SceneClickData data)
     {
-
+        if(hudState == eHudState.Attack)
+        {
+            return;
+        }
 
         if (!isPlayerTurn)
         {
