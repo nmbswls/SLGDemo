@@ -45,6 +45,12 @@ public class BattleManager : MonoBehaviour
         InitBattle();
         //nowPawnPos = grid1.GetCenter();
         //pawn.transform.position = grid1.GetWorldPos(nowPawnPos.x, nowPawnPos.y);
+
+        SceneClickable lisnterner = grid1.GetComponent<SceneClickable>();
+        lisnterner.ClickEvent += delegate (SceneClickData data)
+        {
+            Debug.Log(data.PosInWorld);
+        };
     }
 
 
@@ -54,7 +60,7 @@ public class BattleManager : MonoBehaviour
         {
             NextRoleAct();
         }
-        HandleMouseClick();
+        //HandleMouseClick();
         if (Input.GetKeyDown(KeyCode.T))
         {
             pawn.UseAbility(1);

@@ -40,6 +40,7 @@ public class ActionExecutor
         {
             effectList.Add(newNode);
         }
+        newNode.owner = this;
     }
 
     //eEffectType eid, string paramstring
@@ -84,7 +85,7 @@ public class ActionExecutor
                 newNode = new EffectNode_AddBuff(this,paramstring);
                 break;
             case eEffectType.Animation:
-                newNode = new EffectNode_Animation(this, paramstring);
+                //newNode = new EffectNode_Animation(this, paramstring);
                 break;
             case eEffectType.Sleep:
                 newNode = new EffectNode_Sleep(this,paramstring);

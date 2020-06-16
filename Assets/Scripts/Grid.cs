@@ -11,11 +11,6 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     {
         InitPathPot();
         InitPathSearch();
-        //{
-        //    bool ret = pathComponent.CheckCrossWalkable(new Vector2(39.5f, 19.5f), new Vector2(16.5f, 22.5f));
-        //    Debug.Log(ret);
-        //}
-        
     }
 
 
@@ -383,6 +378,10 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
                 {
                     continue;
                 }
+                if (isBlock(xx, yy))
+                {
+                    continue;
+                }
                 ret.Add(new Vector2Int(xx, yy));
             }
         }
@@ -399,6 +398,7 @@ public interface IGrid_PathSearch{
     bool canPass(Vector2Int from, Vector2Int to);
     bool isBlock(int x, int y);
 
+
     float getH(Vector2Int from, Vector2Int to);
     float getG(Vector2Int from, Vector2Int to);
     List<Vector2Int> getNeighbours(int x, int y);
@@ -409,7 +409,10 @@ public class PathSearcher
 
     public IGrid_PathSearch owner;
     public bool useFloyd = true;
+    public bool useJsp = true;
     int maxPathLen;
+    int maxX;
+    int maxY;
 
     private Heap<PathSearchNode> openList;
     //private PriorityQueue<PathSearchNode> openList = new PriorityQueue<PathSearchNode>(new NodeComparer());
@@ -417,12 +420,30 @@ public class PathSearcher
     private Dictionary<string, PathSearchNode> openSet;
     private HashSet<string> closeSet;
 
+    private List<Vector2Int> pathNodes;
+    private List<Vector2Int> jumpNodes;
+
     private Vector2Int targetPos;
 
     public PathSearcher(IGrid_PathSearch owner, int maxPathLen = 200)
     {
         this.owner = owner;
         this.maxPathLen = maxPathLen;
+        Vector2Int maxGrid = owner.getMaxGridXY();
+        maxX = maxGrid.x;
+        maxY = maxGrid.y;
+    }
+    private bool isWalkable(int x, int y)
+    {
+        if(x < 0 || x >= maxX || y < 0 || y >= maxY)
+        {
+            return false;
+        }
+        if (owner.isBlock(x, y))
+        {
+            return false;
+        }
+        return true;
     }
 
 
@@ -465,16 +486,30 @@ public class PathSearcher
         openList = new Heap<PathSearchNode>(owner.getGridSize());
         openSet = new Dictionary<string, PathSearchNode>();
         closeSet = new HashSet<string>();
+
+        pathNodes = new List<Vector2Int>();
+        jumpNodes = new List<Vector2Int>();
     }
 
 
     public List<Vector2Int> FindPath(Vector2Int from, Vector2Int to)
     {
-        List<Vector2Int> pathNodes = new List<Vector2Int>();
-        if (!FindPathAstar(from, to, ref pathNodes))
+        targetPos = to;
+        if (useJsp)
         {
-            return null;
+            if (!FindPathJPS(from))
+            {
+                return null;
+            }
         }
+        else
+        {
+            if (!FindPathAstar(from))
+            {
+                return null;
+            }
+        }
+        
         if (useFloyd)
         {
             Floyd(pathNodes);
@@ -489,13 +524,15 @@ public class PathSearcher
     }
 
     //直线 直接算距离 
-    public bool FindPathAstar(Vector2Int from, Vector2Int to, ref List<Vector2Int> pathNodes)
+    public bool FindPathAstar(Vector2Int from)
     {
 
-        if (owner == null || pathNodes == null)
+        if (owner == null)
         {
             return false;
         }
+
+        
 
         PathSearchNode pNode = null;
         Reset();
@@ -516,7 +553,7 @@ public class PathSearcher
             pNode = openList.RemoveFirst();
 
             Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
-            if (pNode.x == to.x && pNode.y == to.y)
+            if (pNode.x == targetPos.x && pNode.y == targetPos.y)
             {
                 found = true;
                 endNode = pNode;
@@ -552,7 +589,7 @@ public class PathSearcher
                 }
 
                 float newG = pNode.g + owner.getG(pNodePos, probePos);
-                float newH = owner.getH(probePos, to);
+                float newH = owner.getH(probePos, targetPos);
                 float newF = newG + newH;
 
                 if (openSet.ContainsKey(probeKey))
@@ -601,169 +638,216 @@ public class PathSearcher
         return true;
     }
 
+    
 
-    //private bool FindPathJPS(Vector2Int from, Vector2Int to)
-    //{
-    //    PathSearchNode currentNode;
+    private bool FindPathJPS(Vector2Int from)
+    {
+        if (owner == null)
+        {
+            return false;
+        }
+        Reset();
+        PathSearchNode pNode = null;
 
-    //    PathSearchNode startNode = new PathSearchNode();
-    //    startNode.x = from.x;
-    //    startNode.y = from.y;
+        PathSearchNode startNode = new PathSearchNode();
+        startNode.x = from.x;
+        startNode.y = from.y;
 
-    //    openList.Push(startNode);
-    //    openSet.Add(startNode.x + " " + startNode.y, startNode);
+        openList.Add(startNode);
+        openSet.Add(pos2key(from.x, from.y), startNode);
 
+        bool found = false;
+        PathSearchNode endNode = null;
 
+        while (openList.Count > 0)
+        {
+            pNode = openList.RemoveFirst();
 
-    //    while (openList.Count > 0)
-    //    {
-    //        currentNode = openSet.RemoveFirst();
-    //        openSetContainer.Remove(_startNode);
-
-    //        if (currentNode == _targetNode)
-    //        {
-    //            return true;
-    //        }
-
-
-    //        closedSet.Add(currentNode);
-    //        List<Node> Nodes = _GetSuccessors(currentNode);
-
-    //        foreach (Node node in Nodes)
-    //        {
-    //            jumpNodes.Add(node);
-
-    //            if (closedSet.Contains(node))
-    //                continue;
-
-    //            int newGCost = currentNode.gCost + _GetDistance(currentNode, node);
-    //            if (newGCost < node.gCost || !openSetContainer.Contains(node))
-    //            {
-    //                node.gCost = newGCost;
-    //                node.hCost = _GetDistance(node, _targetNode);
-    //                node.parent = currentNode;
-
-    //                if (!openSetContainer.Contains(node))
-    //                {
-    //                    openSetContainer.Add(node);
-    //                    openSet.Add(node);
-    //                }
-    //                else
-    //                {
-    //                    openSet.UpdateItem(node);
-    //                }
-    //            }
-    //        }
-
-    //    }
-    //    return false;
-    //}
+            Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
+            Debug.Log(pNodePos);
 
 
-    //private List<Node> _GetSuccessors(Node currentNode)
-    //{
-    //    Node jumpNode;
-    //    List<Node> successors = new List<Node>();
-    //    List<Node> neighbours = _grid.GetNeighbours(currentNode);
+            if (pNode.x == targetPos.x && pNode.y == targetPos.y)
+            {
+                found = true;
+                endNode = pNode;
+                break;
+            }
 
-    //    foreach (Node neighbour in neighbours)
-    //    {
-    //        int xDirection = neighbour.x - currentNode.x;
-    //        int yDirection = neighbour.y - currentNode.y;
+            if (pNode.depth > maxPathLen)
+            {
+                continue;
+            }
 
-    //        jumpNode = _Jump(neighbour, currentNode, xDirection, yDirection);
+            closeSet.Add(pos2key(pNode.x, pNode.y));
+            List<Vector2Int> Nodes = _GetSuccessors(pNodePos);
 
-    //        if (jumpNode != null)
-    //            successors.Add(jumpNode);
-    //    }
-    //    return successors;
-    //}
+            foreach (Vector2Int node in Nodes)
+            {
+                jumpNodes.Add(node);
+
+                Vector2Int probePos = node;
+                string probeKey = pos2key(probePos.x, probePos.y);
+                if (closeSet.Contains(probeKey))
+                {
+                    continue;
+                }
+
+                float newG = pNode.g + owner.getG(pNodePos, probePos);
+                float newH = owner.getH(probePos, targetPos);
+                float newF = newG + newH;
+
+                if (openSet.ContainsKey(probeKey))
+                {
+                    if (openSet[probeKey].g <= newG)
+                    {
+                        continue;
+                    }
+                    PathSearchNode oldNode = openSet[probeKey];
+                    oldNode.f = newF;
+                    oldNode.g = newG;
+                    oldNode.h = newH;
+                    oldNode.depth = pNode.depth + 1;
+                    oldNode.previous = pNode;
+                    openList.UpdateItem(oldNode);
+                }
+                else
+                {
+                    PathSearchNode newNode = new PathSearchNode();
+                    newNode.x = probePos.x;
+                    newNode.y = probePos.y;
+                    newNode.f = newF;
+                    newNode.g = newG;
+                    newNode.h = newH;
+                    newNode.depth = pNode.depth + 1;
+                    newNode.previous = pNode;
+
+                    openSet[probeKey] = newNode;
+                    openList.Add(newNode);
+                }
+            }
+
+        }
+        if (!found)
+        {
+            return false;
+        }
+        PathSearchNode p = endNode;
+        int pathLen = p.depth + 1;
+        while (p != null)
+        {
+            pathNodes.Insert(0, new Vector2Int(p.x, p.y));
+            p = p.previous;
+        }
+        return true;
+    }
+
+    public static Vector2Int V2InValid = new Vector2Int(-1, -1);
+
+    public List<Vector2Int> _GetSuccessors(Vector2Int currentNode)
+    {
+        Vector2Int jumpNode;
+        List<Vector2Int> successors = new List<Vector2Int>();
+        List<Vector2Int> neighbours = owner.getNeighbours(currentNode.x, currentNode.y);
+
+        foreach (Vector2Int neighbour in neighbours)
+        {
+            int xDirection = neighbour.x - currentNode.x;
+            int yDirection = neighbour.y - currentNode.y;
+
+            jumpNode = _Jump(neighbour, currentNode, xDirection, yDirection);
+
+            if (jumpNode != V2InValid)
+                successors.Add(jumpNode);
+        }
+        return successors;
+    }
 
 
-    //private bool _Jump(Vector2Int currentNode, Vector2Int parentNode, int xDirection, int yDirection, out Vector2Int ret)
-    //{
-    //    ret = Vector2Int.zero;
+    //jsp 接收私有
+    private bool _forced;
 
-    //    if (currentNode == null || owner.isBlock(currentNode.x, currentNode.y))
-    //        return false;
-    //    if (currentNode == targetPos)
-    //    {
-    //        _forced = true;
-    //        ret = currentNode;
-    //        return true;
-    //    }
+    private Vector2Int _Jump(Vector2Int currentNode, Vector2Int parentNode, int xDirection, int yDirection)
+    {
 
-    //    _forced = false;
-    //    if (xDirection != 0 && yDirection != 0)
-    //    {
-    //        if ((owner.isBlock(currentNode.x - xDirection, currentNode.y) && !owner.isBlock(currentNode.x - xDirection, currentNode.y + yDirection)) ||
-    //            (owner.isBlock(currentNode.x, currentNode.y - yDirection) && !owner.isBlock(currentNode.x + xDirection, currentNode.y - yDirection)))
-    //        {
-    //            ret = currentNode;
-    //            return true;
-    //        }
+        if (currentNode == null || !isWalkable(currentNode.x, currentNode.y))
+            return new Vector2Int(-1,-1);
+        if (currentNode == targetPos)
+        {
+            _forced = true;
+            return currentNode;
+        }
+
+        _forced = false;
+        if (xDirection != 0 && yDirection != 0)
+        {
+            if ((!isWalkable(currentNode.x - xDirection, currentNode.y) && isWalkable(currentNode.x - xDirection, currentNode.y + yDirection)) ||
+                (!isWalkable(currentNode.x, currentNode.y - yDirection) && isWalkable(currentNode.x + xDirection, currentNode.y - yDirection)))
+            {
+                return currentNode;
+            }
 
 
-    //        Vector2Int nextHorizontalNode = new Vector2Int(currentNode.x + xDirection, currentNode.y);
-    //        Vector2Int nextVerticalNode = new Vector2Int(currentNode.x, currentNode.y + yDirection);
-    //        if (nextHorizontalNode == null || nextVerticalNode == null)
-    //        {
-    //            bool found = false;
-    //            if (nextHorizontalNode != null && !owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
-    //            {
-    //                found = true;
-    //            }
-    //            if (nextVerticalNode != null && owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
-    //            {
-    //                found = true;
-    //            }
+            Vector2Int nextHorizontalNode = new Vector2Int(currentNode.x + xDirection, currentNode.y);
+            Vector2Int nextVerticalNode = new Vector2Int(currentNode.x, currentNode.y + yDirection);
+            if (nextHorizontalNode == null || nextVerticalNode == null)
+            {
+                bool found = false;
+                if (nextHorizontalNode != null && !owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
+                {
+                    found = true;
+                }
+                if (nextVerticalNode != null && !owner.isBlock(currentNode.x + xDirection, currentNode.y + yDirection))
+                {
+                    found = true;
+                }
 
-    //            if (!found)
-    //                return false;
-    //        }
-    //        Vector2Int outV2;
-    //        if (_Jump(nextHorizontalNode, currentNode, xDirection, 0, out outV2) || _Jump(nextVerticalNode, currentNode, 0, yDirection, out outV2))
-    //        {
-    //            if (!_forced)
-    //            {
-    //                UnityEngine.Debug.Log(currentNode);
-    //                Vector2Int temp = new Vector2Int(currentNode.x + xDirection, currentNode.y + yDirection);
-    //                if (temp != null && _grid.showDebug)
-    //                    UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(temp.x, 1, temp.y), Color.green, Mathf.Infinity);
-    //                return _Jump(temp, currentNode, xDirection, yDirection);
-    //            }
-    //            else
-    //            {
-    //                return currentNode;
-    //            }
-    //        }
-    //    }
-    //    else
-    //    {
-    //        if (xDirection != 0)
-    //        {
-    //            if ((_grid.IsWalkable(currentNode.x + xDirection, currentNode.y + 1) && !_grid.IsWalkable(currentNode.x, currentNode.y + 1)) ||
-    //                (_grid.IsWalkable(currentNode.x + xDirection, currentNode.y - 1) && !_grid.IsWalkable(currentNode.x, currentNode.y - 1)))
-    //            {
-    //                _forced = true;
-    //                return currentNode;
-    //            }
-    //        }
-    //        else
-    //        {
-    //            if ((_grid.IsWalkable(currentNode.x + 1, currentNode.y + yDirection) && !_grid.IsWalkable(currentNode.x + 1, currentNode.y)) ||
-    //                (_grid.IsWalkable(currentNode.x - 1, currentNode.y + yDirection) && !_grid.IsWalkable(currentNode.x - 1, currentNode.y)))
-    //            {
-    //                _forced = true;
-    //                return currentNode;
-    //            }
-    //        }
-    //    }
-    //    Node nextNode = _grid.GetNodeFromIndex(currentNode.x + xDirection, currentNode.y + yDirection);
-    //    if (nextNode != null && _grid.showDebug)
-    //        UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(nextNode.x, 1, nextNode.y), Color.green, Mathf.Infinity);
-    //    return _Jump(nextNode, currentNode, xDirection, yDirection);
-    //}
+                if (!found)
+                    return V2InValid;
+            }
+
+            if (_Jump(nextHorizontalNode, currentNode, xDirection, 0) != V2InValid || _Jump(nextVerticalNode, currentNode, 0, yDirection) != V2InValid)
+            {
+                if (!_forced)
+                {
+                    UnityEngine.Debug.Log(currentNode);
+                    Vector2Int temp = new Vector2Int(currentNode.x + xDirection, currentNode.y + yDirection);
+                    //if (temp != V2InValid)
+                    //    UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(temp.x, 1, temp.y), Color.green, Mathf.Infinity);
+                    return _Jump(temp, currentNode, xDirection, yDirection);
+                }
+                else
+                {
+                    return currentNode;
+                }
+            }
+        }
+        else
+        {
+            if (xDirection != 0)
+            {
+                if ((isWalkable(currentNode.x + xDirection, currentNode.y + 1) && !isWalkable(currentNode.x, currentNode.y + 1)) ||
+                    (isWalkable(currentNode.x + xDirection, currentNode.y - 1) && !isWalkable(currentNode.x, currentNode.y - 1)))
+                {
+                    _forced = true;
+                    return currentNode;
+                }
+            }
+            else
+            {
+                if ((isWalkable(currentNode.x + 1, currentNode.y + yDirection) && !isWalkable(currentNode.x + 1, currentNode.y)) ||
+                    (isWalkable(currentNode.x - 1, currentNode.y + yDirection) && !isWalkable(currentNode.x - 1, currentNode.y)))
+                {
+                    _forced = true;
+                    return currentNode;
+                }
+            }
+        }
+        Vector2Int nextNode = new Vector2Int(currentNode.x + xDirection, currentNode.y + yDirection);
+        //if (nextNode != V2InValid)
+        //    UnityEngine.Debug.DrawLine(new Vector3(currentNode.x, 1, currentNode.y), new Vector3(nextNode.x, 1, nextNode.y), Color.green, Mathf.Infinity);
+        return _Jump(nextNode, currentNode, xDirection, yDirection);
+    }
 
 
     #region floyd
