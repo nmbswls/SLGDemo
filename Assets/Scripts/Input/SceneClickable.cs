@@ -22,7 +22,8 @@ public class SceneClickable : MonoBehaviour, SceneClickableActor
 
 	public void onClick(SceneClickData data)
 	{
-		
+		if (interval > 0)
+			return;
 		if (ClickEvent != null)
 			ClickEvent(data);
 	}

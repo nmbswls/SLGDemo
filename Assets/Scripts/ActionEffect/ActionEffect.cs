@@ -21,142 +21,152 @@ public enum eEffectType
     AddBuff = 6,
     Animation = 7,
     RunScript = 8,
-    Max = 9,
+    CallFunc = 9,
+    Max = 10,
 }
 
-public class ActionExecutor
+
+public class ActionNodeFactroy
 {
 
-    public bool isDone;
-    public bool isUpdating;
-    public bool isError;
-
-    public List<EffectNodeBase> effectList = new List<EffectNodeBase>();
 
 
-    public void AddEffectNode(EffectNodeBase newNode)
+    public static ActionNode CreateFromString(eEffectType eid, string paramstring)
     {
-        if (newNode != null)
-        {
-            effectList.Add(newNode);
-        }
-        newNode.owner = this;
-    }
-
-    //eEffectType eid, string paramstring
-    public void AddEffect(eEffectType eid, string paramstring)
-    {
-        EffectNodeBase newNode = createNode(eid, paramstring);
-        if (newNode != null)
-        {
-            effectList.Add(newNode);
-        }
-    }
-
-    public void AddEffectMove(BaseUnit unit, List<Vector2Int> path)
-    {
-        EffectNodeBase newNode = new EffectNode_Move(this, eEffectType.Move, unit, path);
-        if (newNode != null)
-        {
-            effectList.Add(newNode);
-        }
-    }
-
-    public void InsertEffect(int idx, eEffectType eid, string paramstring)
-    {
-        EffectNodeBase newNode = createNode(eid, paramstring);
-        if (newNode != null)
-        {
-            effectList.Insert(idx, newNode);
-        }
-    }
-
-    private EffectNodeBase createNode(eEffectType eid, string paramstring)
-    {
-        EffectNodeBase newNode = null;
+        ActionNode newNode = null;
         string[] paramList = paramstring.Split(',');
         switch (eid)
         {
             case eEffectType.Delay:
                 float time = float.Parse(paramstring);
-                newNode = new EffectNode_Delay(this, time);
+                newNode = new ActionNode_Delay(time);
                 break;
             case eEffectType.AddBuff:
-                newNode = new EffectNode_AddBuff(this,paramstring);
+                newNode = new EffectNode_AddBuff(paramstring);
                 break;
             case eEffectType.Animation:
-                //newNode = new EffectNode_Animation(this, paramstring);
                 break;
             case eEffectType.Sleep:
-                newNode = new EffectNode_Sleep(this,paramstring);
+                newNode = new EffectNode_Sleep(paramstring);
                 break;
             case eEffectType.Damage:
-                if(paramList.Length != 3)
+                if (paramList.Length != 3)
                 {
                     break;
                 }
                 Int64 source = Int64.Parse(paramList[0]);
                 Int64 target = Int64.Parse(paramList[1]);
                 Int64 Damage = Int64.Parse(paramList[2]);
-                newNode = new EffectNode_Damage(this, source, target, Damage);
+                newNode = new ActionNode_Damage(source, target, Damage);
                 break;
             default:
                 break;
         }
         return newNode;
     }
+}
 
-   
-    
+public class ActionExecutor
+{
+
+    private float _startTime;
+
+    //public class TimelineNode
+    //{
+    //    public float timelineTime;
+    //    public List<ActionNode> effects;
+    //}
+
+    //public List<TimelineNode> TimelineNodes = new List<TimelineNode>();
+
+    public bool isActioning()
+    {
+        return NodeList.Count > 0;
+    }
+
+    public List<ActionNode> NodeList = new List<ActionNode>();
 
     public void Tick()
     {
-        if (isDone || isError)
+        if(NodeList.Count == 0)
         {
             return;
         }
 
-        if (!isUpdating)
+        //if(_startTime + NodeList.Peek().timeline < Time.time)
+        //{
+        //    return;
+        //}
+        ActionNode first = NodeList[0];
+        if(first.state == eActionNodeState.Updating)
         {
+            first.Tick();
             return;
         }
-        EffectNodeBase first = effectList[0];
-        ExecRet ret = first.Tick();
-        if (ret != ExecRet.UPDATING)
+        
+        while (NodeList.Count > 0)
         {
-            isUpdating = false;
-            effectList.RemoveAt(0);
-            HandleEffect();
+            first = NodeList[0];
+            if (first.state == eActionNodeState.Default)
+            {
+                first.Exec();
+            }
+            if(first.state == eActionNodeState.Updating)
+            {
+                return;
+            }
+            NodeList.Remove(first);
         }
+        
+        //ExecRet ret = first.Tick();
+        //if (ret != ExecRet.UPDATING)
+        //{
+        //    NodeList.RemoveAt(0);
+        //    HandleEffect();
+        //}
     }
 
     public void HandleEffect()
     {
-        if (isDone || isError)
+
+        //ActionNode first;
+        //while (NodeList.Count > 0)
+        //{
+        //    first = NodeList[0];
+        //    ExecRet ret = first.Exec();
+        //    if (ret == ExecRet.UPDATING)
+        //    {
+        //        return;
+        //    }
+        //    NodeList.RemoveAt(0);
+        //    if (ret == ExecRet.FAIL)
+        //    {
+        //        Debug.Log("error ");
+        //        return;
+        //    }
+        //}
+    }
+
+
+    public void AddActionNode(ActionNode newNode)
+    {
+        if (newNode != null)
+        {
+            NodeList.Add(newNode);
+            newNode.owner = this;
+        }
+    }
+
+    public void AddImmediateActionNode(int idx, ActionNode newNode)
+    {
+        if(newNode == null)
         {
             return;
         }
-
-        EffectNodeBase first;
-        while (effectList.Count > 0)
-        {
-            first = effectList[0];
-            ExecRet ret = first.Exec();
-            if (ret == ExecRet.UPDATING)
-            {
-                isUpdating = true;
-                return;
-            }
-            effectList.RemoveAt(0);
-            if (ret == ExecRet.FAIL)
-            {
-                Debug.Log("error ");
-                isError = true;
-                return;
-            }
-        }
-        isDone = true;
+        newNode.owner = this;
+        NodeList.Insert(idx, newNode);
     }
+
 }
 
 
@@ -168,47 +178,60 @@ public enum ExecRet
     FAIL,
 }
 
-public class EffectNodeBase
+public enum eActionNodeState
+{
+    Default,
+    Updating,
+    Finished,
+    Error,
+}
+
+public class ActionNode
 {
     public ActionExecutor owner;
-    public bool isDone;
+    public eActionNodeState state = eActionNodeState.Default; //0 1 2
+    public float timeline;
 
     public eEffectType eid;
     //public EffectCallback callback;
 
-    public EffectNodeBase(ActionExecutor owner, eEffectType eid)
+    public ActionNode(eEffectType eid)
     {
-        this.owner = owner;
         this.eid = eid;
     }
-    public virtual ExecRet Tick()
+    public virtual void Tick()
     {
-        return ExecRet.UPDATING;
+        state = eActionNodeState.Finished;
     }
-    public virtual ExecRet Exec()
+    public virtual void Exec()
     {
-        return ExecRet.SUCCESS;
+        state = eActionNodeState.Finished;
     }
 
     public void SetDone()
     {
-        isDone = true;
+        state = eActionNodeState.Finished;
     }
 }
 
-public class EffectNode_Delay : EffectNodeBase
+
+
+
+
+
+public class ActionNode_Delay : ActionNode
 {
     public float delaySec = 0f;
     
     float timer;
     bool triggered;
 
-    public EffectNode_Delay(ActionExecutor owner, float delaySec): base(owner, eEffectType.Delay)
+    public ActionNode_Delay(float delaySec): base(eEffectType.Delay)
     {
         this.delaySec = delaySec;
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
         timer += Time.deltaTime;
         //Debug.Log("delay");
@@ -216,12 +239,13 @@ public class EffectNode_Delay : EffectNodeBase
         {
             if (timer > delaySec)
             {
-                owner.AddEffect(eEffectType.Damage, "1000");
-                owner.AddEffect(eEffectType.AddBuff, "10111");
-                owner.AddEffect(eEffectType.Animation, "act_01");
-                return ExecRet.SUCCESS;
+                {
+                    ActionNode node = ActionNodeFactroy.CreateFromString(eEffectType.Damage, "1000");
+                    owner.AddActionNode(node);
+                }
+                state = eActionNodeState.Finished;
             }
-            return ExecRet.UPDATING;
+            return;
         }
         if (timer > delaySec * 0.5f)
         {
@@ -231,19 +255,23 @@ public class EffectNode_Delay : EffectNodeBase
             //BattleManager.Instance.AddEffectImmediate(eEffectType.Sleep, "2");
             triggered = true;
         }
-        return ExecRet.UPDATING;
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
-        return ExecRet.UPDATING;
+        state = eActionNodeState.Updating;
     }
 
 
 }
 
 
-public class EffectNode_Move : EffectNodeBase
+
+
+
+
+
+public class EffectNode_Move : ActionNode
 {
     public List<Vector2Int> path;
     public BaseUnit unit;
@@ -251,18 +279,19 @@ public class EffectNode_Move : EffectNodeBase
     int _pathIdx = 0;
     Grid _grid;
 
-    public EffectNode_Move(ActionExecutor owner, eEffectType eid, BaseUnit unit, List<Vector2Int> path) : base(owner, eid)
+    public EffectNode_Move(BaseUnit unit, List<Vector2Int> path) : base(eEffectType.Move)
     {
         this.unit = unit;
         this.path = path;
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
         if(_pathIdx >= path.Count)
         {
             BattleManager.Instance.Unlock();
-            return ExecRet.SUCCESS;
+            state = eActionNodeState.Finished;
+            return;
         }
 
 
@@ -281,16 +310,16 @@ public class EffectNode_Move : EffectNodeBase
         {
             unit.transform.position += moveDist;
         }
-        return ExecRet.UPDATING;
 
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
 
         if (unit == null || path == null || path.Count == 0)
         {
-            return ExecRet.FAIL;
+            state = eActionNodeState.Error;
+            return;
         }
 
         //if (unit.CanMove())
@@ -301,24 +330,21 @@ public class EffectNode_Move : EffectNodeBase
         BattleManager.Instance.Lock();
         _pathIdx = 0;
         _grid = BattleManager.Instance.grid1;
-
-        return ExecRet.UPDATING;
+        state = eActionNodeState.Updating;
     }
-
-
 }
 
 
 
 
-public class EffectNode_Damage : EffectNodeBase
+public class ActionNode_Damage : ActionNode
 {
 
     public Int64 Damage;
     public Int64 Source;
     public Int64 Target;
 
-    public EffectNode_Damage(ActionExecutor owner, Int64 source, Int64 target, Int64 damage) : base(owner, eEffectType.Damage)
+    public ActionNode_Damage(Int64 source, Int64 target, Int64 damage) : base(eEffectType.Damage)
     {
 
         Damage = damage;
@@ -326,82 +352,81 @@ public class EffectNode_Damage : EffectNodeBase
         Target = target;
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
-        return base.Tick();
+        base.Tick();
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
         Debug.Log("damage: " + Damage);
 
         BattleManager.DoDamage(-1, -1, Damage);
-
-        return ExecRet.SUCCESS;
+        state = eActionNodeState.Finished;
     }
 }
 
-public class EffectNode_AddBuff : EffectNodeBase
+public class EffectNode_AddBuff : ActionNode
 {
     public int BuffId;
 
-    public EffectNode_AddBuff(ActionExecutor owner, string paramstring) : base(owner, eEffectType.AddBuff)
+    public EffectNode_AddBuff(string paramstring) : base(eEffectType.AddBuff)
     {
 
         string[] parray = paramstring.Split(',');
         BuffId = int.Parse(parray[0]);
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
-        return base.Tick();
+        base.Tick();
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
         Debug.Log("add buff: " + BuffId);
-        return ExecRet.SUCCESS;
+        state = eActionNodeState.Finished;
     }
 }
 
-public class EffectNode_Animation : EffectNodeBase
+public class ActionNode_Animation : ActionNode
 {
     public string AnimClipName;
     public BaseUnit animTarget;
 
-    public EffectNode_Animation(ActionExecutor owner, BaseUnit animTarget, string animName) : base(owner, eEffectType.Animation)
+    public ActionNode_Animation(BaseUnit animTarget, string animName) : base(eEffectType.Animation)
     {
 
         AnimClipName = animName;
         this.animTarget = animTarget;
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
-        return base.Tick();
+        base.Tick();
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
         Debug.Log("name: " + AnimClipName);
-        return ExecRet.SUCCESS;
+        state = eActionNodeState.Finished;
     }
 }
 
-public class EffectNode_Sleep : EffectNodeBase
+public class EffectNode_Sleep : ActionNode
 {
     public float SleepTime;
 
     float _timer;
 
-    public EffectNode_Sleep(ActionExecutor owner, string paramstring) : base(owner, eEffectType.Sleep)
+    public EffectNode_Sleep(string paramstring) : base(eEffectType.Sleep)
     {
 
         string[] parray = paramstring.Split(',');
         SleepTime = 5f;
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
         _timer += Time.deltaTime;
         //Debug.Log("sleeping");
@@ -409,24 +434,23 @@ public class EffectNode_Sleep : EffectNodeBase
         if (_timer > SleepTime)
         {
             Debug.Log("sleep end");
-            return ExecRet.SUCCESS;
+            state = eActionNodeState.Finished;
         }
-        return ExecRet.UPDATING;
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
-        return ExecRet.UPDATING;
+        state = eActionNodeState.Updating;
     }
 }
 
-public class EffectNode_RunScript : EffectNodeBase
+public class EffectNode_RunScript : ActionNode
 {
     public string ScriptName;
 
     private LuaTable scriptEnv;
     private Action luaExec;
-    public EffectNode_RunScript(ActionExecutor owner, string paramstring) : base(owner,eEffectType.RunScript)
+    public EffectNode_RunScript(string paramstring) : base(eEffectType.RunScript)
     {
 
         ScriptName = paramstring;
@@ -445,17 +469,64 @@ public class EffectNode_RunScript : EffectNodeBase
         scriptEnv.Get("Exec", out luaExec);
     }
 
-    public override ExecRet Tick()
+    public override void Tick()
     {
-        return ExecRet.UPDATING;
+        base.Tick();
     }
 
-    public override ExecRet Exec()
+    public override void Exec()
     {
         if(luaExec != null)
         {
             luaExec();
         }
-        return ExecRet.SUCCESS;
+        state = eActionNodeState.Finished;
     }
+}
+
+
+
+public class ActionNode_CallFunc : ActionNode
+{
+    public Action Func;
+
+    public ActionNode_CallFunc(Action Func) : base(eEffectType.CallFunc)
+    {
+        this.Func = Func;
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+    }
+
+    public override void Exec()
+    {
+        if(Func != null)
+            Func();
+        state = eActionNodeState.Finished;
+    }
+
+
+}
+
+public class ActionNode_Timeline : ActionNode
+{
+
+    public ActionNode_Timeline() : base(eEffectType.Delay)
+    {
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+    }
+
+    public override void Exec()
+    {
+        
+        state = eActionNodeState.Finished;
+    }
+
+
 }

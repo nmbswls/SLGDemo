@@ -100,7 +100,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
             }
             return;
         }
- 
+
         for (int i = 0; i < path.Count; i++)
         {
 
@@ -346,7 +346,15 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
 
     public float getH(Vector2Int from, Vector2Int to)
     {
-        return Mathf.Abs(from.x - to.x) + Mathf.Abs(from.y - to.y); 
+        int distX = Mathf.Abs(from.x - to.x);
+        int distY = Mathf.Abs(from.y - to.y);
+
+        if (distX > distY)
+            return 1.4f * distY + 1.0f * (distX - distY);
+
+        return 1.4f * distX + 1.0f * (distY - distX);
+
+        //return Mathf.Abs(from.x - to.x) + Mathf.Abs(from.y - to.y); 
     }
 
     public float getG(Vector2Int from, Vector2Int to)
@@ -664,7 +672,7 @@ public class PathSearcher
             pNode = openList.RemoveFirst();
 
             Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
-            Debug.Log(pNodePos);
+            //Debug.Log(pNodePos);
 
 
             if (pNode.x == targetPos.x && pNode.y == targetPos.y)

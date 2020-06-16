@@ -23,24 +23,41 @@ public class BaseUnit : MonoBehaviour
         public float atk;
         public Int64 speed;
     }
+
+    SceneClickable listener;
     public void Init()
     {
         InitProperty();
         InitAbility();
-    }
 
+        listener = gameObject.AddComponent<SceneClickable>();
+        listener.ClickEvent += OnClick;
+    }
+    public void OnClick(SceneClickData data)
+    {
+        BattleManager.Instance.OnActorClick(this);
+    }
 
     public AbilityManager mAbilityManager;
 
     Dictionary<string, AbilityConfig> AbilityConfigMap = new Dictionary<string, AbilityConfig>();
     public List<Ability> AbilityList = new List<Ability>();
+
+
+
+
+
+    
+
+
+
     private void InitAbility()
     {
 
         AbilityConfig Config = new AbilityConfig();
         Config.effects.Add("7,Anim01 start atk");
 
-        Config.effects.Add("3,2");
+        Config.effects.Add("5,2");
         //Config.effects.Add("5 50");
         //Config.effects.Add("6 5");
 
@@ -92,7 +109,8 @@ public class BaseUnit : MonoBehaviour
 
     public void OnDie()
     {
-        BattleManager.Instance.AddEffect(eEffectType.AddBuff, "100001");
+        ActionNode node = ActionNodeFactroy.CreateFromString(eEffectType.AddBuff, "100001");
+        BattleManager.Instance.actionExecutor.AddActionNode(node);
     }
 
 

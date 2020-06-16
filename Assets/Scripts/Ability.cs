@@ -4,6 +4,49 @@ using System.Collections.Generic;
 using UnityEngine;
 using XLua;
 
+
+public enum eBattleEventType
+{
+    USE_SKILL,
+    TRIGGER
+}
+
+public class BattleEvent
+{
+    public eBattleEventType type;
+    public bool isDone;
+    public object data;
+}
+
+public class EventHandler
+{
+    List<BattleEvent> evtList = new List<BattleEvent>();
+
+    public void Tick()
+    {
+        if(evtList.Count == 0)
+        {
+            return;
+        }
+        if (evtList[0].isDone)
+        {
+            evtList.RemoveAt(0);
+        }
+        //启动
+        //将事件拼装成timeline
+    }
+}
+
+public enum eAbilityTargetType
+{
+    Invalid = 0,
+    NoTarget = 1,
+    Point = 2,
+    Target = 4,
+    Enemy = 8,
+    Friend = 16,
+    Netrual = 32,
+}
 public class AbilityConfig
 {
     public int id;
@@ -14,7 +57,7 @@ public class AbilityConfig
     public float TotalTime; //动画总时间
     public List<string> effects = new List<string>();
     public string animString;
-
+    public int targetType = 4;
 }
 
 public enum eAbilityPhase
@@ -27,8 +70,11 @@ public enum eAbilityPhase
 public class Ability
 {
     public Int64 InstId;
+
+    public BaseUnit owner;
     public string AbilityName;
     public int CoolDownBattle;
+
     public float CoolDownExplore;
     public Dictionary<string, string> extraParams;
 
@@ -65,8 +111,8 @@ public class Ability
             case eAbilityPhase.BeforeStart:
                 if(Config != null && Config.animString != null && Config.animString != "")
                 {
-                    EffectNodeBase animNode = new EffectNode_Animation(null, Caster, Config.animString);
-                    BattleManager.Instance.AddEffect(animNode);
+                    ActionNode animNode = new ActionNode_Animation(Caster, Config.animString);
+                    BattleManager.Instance.actionExecutor.AddActionNode(animNode);
                     UseSkillTimer = Time.time;
                 }
                 break;
@@ -86,7 +132,7 @@ public class Ability
 
     public void ExecEffectes()
     {
-        ActionExecutor exec = new ActionExecutor();
+        ActionExecutor exec = BattleManager.Instance.actionExecutor;
 
         for (int i = 0; i < Config.effects.Count; i++)
         {
@@ -102,13 +148,32 @@ public class Ability
             {
                 continue;
             }
-            exec.AddEffect((eEffectType)typeInt, param.Substring(splitIdx + 1));
+            ActionNode node;
+            if (typeInt == (int)eEffectType.Animation)
+            {
+                node = new ActionNode_Animation(owner, param.Substring(splitIdx + 1));
+            }
+            else if (typeInt == (int)eEffectType.Damage)
+            {
+                node = new ActionNode_Damage(-1,-1, long.Parse(param.Substring(splitIdx + 1)));
+            }
+            else
+            {
+                node = ActionNodeFactroy.CreateFromString((eEffectType)typeInt, param.Substring(splitIdx+1));
+                Debug.Log("new node type:" + node.eid);
+            }
+
+            
+
+            
+            //exec.AddActionNode(node);
+            exec.AddImmediateActionNode(i,node);
         }
-        BattleManager.Instance.pendingActions.Add(exec);
     }
-    //其函数都是执行器，接收一个实例作为参数
+
     public virtual void OnSpellStart()
     {
+        Debug.Log("spell start");
         ExecEffectes();
     }
     public virtual void OnSpellEnd()
@@ -120,7 +185,20 @@ public class Ability
         //check cost 
         //失败则返回
         SwitchPhase(eAbilityPhase.BeforeStart);
+        ActionExecutor exec = BattleManager.Instance.actionExecutor;
+
+        ActionNode anim = new ActionNode_Animation(owner,"act animation 01");
+        ActionNode pre_delay = new ActionNode_Delay(0.5f);
+
+        exec.AddActionNode(anim);
+        exec.AddActionNode(pre_delay);
+
+        ActionNode_CallFunc func = new ActionNode_CallFunc(OnSpellStart);
+        exec.AddActionNode(func);
+        ActionNode post_delay = new ActionNode_Delay(1.5f);
+        exec.AddActionNode(post_delay);
         //OnSpellStart();
+        Debug.Log("use skill");
     }
 
     public virtual void ParentTest()

@@ -24,6 +24,9 @@ public class BattleManager : MonoBehaviour
 
     public List<BaseUnit> BattleUnits = new List<BaseUnit>();
     public Dictionary<Int64, BaseUnit> AllUnitDict = new Dictionary<long, BaseUnit>();
+
+
+    private SceneClickable gridListener;
     //public List<FakeActor> fakeActors = new List<FakeActor>();
     //public class FakeActor 
     //{
@@ -46,38 +49,51 @@ public class BattleManager : MonoBehaviour
         //nowPawnPos = grid1.GetCenter();
         //pawn.transform.position = grid1.GetWorldPos(nowPawnPos.x, nowPawnPos.y);
 
-        SceneClickable lisnterner = grid1.GetComponent<SceneClickable>();
-        lisnterner.ClickEvent += delegate (SceneClickData data)
-        {
-            Debug.Log(data.PosInWorld);
-        };
+        gridListener = grid1.GetComponent<SceneClickable>();
+        gridListener.ClickEvent += HandleMouseClick;
+    }
+
+    private void OnDestroy()
+    {
+        //unregister
+        gridListener.ClickEvent -= HandleMouseClick;
     }
 
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            NextRoleAct();
-        }
+        
         //HandleMouseClick();
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            pawn.UseAbility(1);
-        }
 
-        TickAbility();
+        //TickAbility();
         TickAction();
-        
-        
+        TickMove();
     }
 
-
-    private void TickAbility()
+    public int hudState = 0;
+    public Ability nowAbility;
+    public void StartChooseTarget()
     {
-
+        nowAbility = nowTurnActor.AbilityList[0];
+        if ((nowAbility.Config.targetType & 4) != 0)
+        {
+            hudState = 1;
+        }
     }
 
+    public void OnActorClick(BaseUnit target)
+    {
+        if (hudState == 0)
+        {
+            Debug.Log("show info");
+        }
+        else if (hudState == 1)
+        {
+            nowAbility.UseAbility();
+        }
+    }
+
+    
 
     bool Locked
     {
@@ -100,20 +116,20 @@ public class BattleManager : MonoBehaviour
 
     #region round
 
-    public class ActionNode : System.IComparable<ActionNode>
+    public class ActorTurnNode : System.IComparable<ActorTurnNode>
     {
         public BaseUnit battleActor;
         public int prevIdx;
         public int nowIdx;
 
-        public int CompareTo(ActionNode obj)  //实现该比较方法即可
+        public int CompareTo(ActorTurnNode obj)  //实现该比较方法即可
         {
             return battleActor.stats.speed.CompareTo(obj.battleActor.stats.speed);
         }
     }
 
-    List<ActionNode> NowRoundActionSeq;
-    List<ActionNode> NextRoundActionSeq;
+    List<ActorTurnNode> NowRoundActionSeq;
+    List<ActorTurnNode> NextRoundActionSeq;
     BaseUnit nowTurnActor;
     bool isPlayerTurn;
 
@@ -143,11 +159,11 @@ public class BattleManager : MonoBehaviour
 
         pawn = BattleUnits[0];
 
-        NextRoundActionSeq = new List<ActionNode>();
+        NextRoundActionSeq = new List<ActorTurnNode>();
 
         for (int i = 0; i < BattleUnits.Count; i++)
         {
-            ActionNode newNode = new ActionNode();
+            ActorTurnNode newNode = new ActorTurnNode();
             newNode.battleActor = BattleUnits[i];
             NextRoundActionSeq.Add(newNode);
         }
@@ -166,11 +182,11 @@ public class BattleManager : MonoBehaviour
     {
         NowRound++;
         NowRoundActionSeq = NextRoundActionSeq;
-        NextRoundActionSeq = new List<ActionNode>();
+        NextRoundActionSeq = new List<ActorTurnNode>();
 
         for (int i = 0; i < NowRoundActionSeq.Count; i++)
         {
-            ActionNode newNode = new ActionNode();
+            ActorTurnNode newNode = new ActorTurnNode();
             newNode.battleActor = NowRoundActionSeq[i].battleActor;
             NextRoundActionSeq.Add(newNode);
         }
@@ -202,7 +218,7 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        ActionNode frontNode = NowRoundActionSeq[0];
+        ActorTurnNode frontNode = NowRoundActionSeq[0];
         NowRoundActionSeq.RemoveAt(0);
         nowTurnActor = frontNode.battleActor;
 
@@ -241,132 +257,93 @@ public class BattleManager : MonoBehaviour
 
     #region acion
 
-    public List<ActionExecutor> pendingActions = new List<ActionExecutor>();
-    //public ActionExecutor HandlingAction = null;
+    //public List<TimelineExecutor> pendingActions = new List<TimelineExecutor>();
+    public ActionExecutor actionExecutor = new ActionExecutor();
 
-    public void AddEffect(EffectNodeBase newNode)
-    {
-        if (pendingActions.Count == 0)
-        {
-            pendingActions.Add(new ActionExecutor());
-        }
-
-
-        pendingActions[0].AddEffectNode(newNode);
-    }
+    //public void AddEffect(global::ActionNode newNode)
+    //{
+    //    if (pendingActions.Count == 0)
+    //    {
+    //        pendingActions.Add(new ActionExecutor());
+    //    }
 
 
-    public void AddEffect(eEffectType name, string paramstring)
-    {
-        if (pendingActions.Count == 0)
-        {
-            pendingActions.Add(new ActionExecutor());
-        }
+    //    pendingActions[0].AddEffectNode(newNode);
+    //}
 
 
-        pendingActions[0].AddEffect(name, paramstring);
-    }
+    //public void AddEffect(eEffectType name, string paramstring)
+    //{
+    //    if (pendingActions.Count == 0)
+    //    {
+    //        pendingActions.Add(new ActionExecutor());
+    //    }
 
-    public void AddEffectImmediate(eEffectType name, string paramstring)
-    {
-        if (pendingActions.Count == 0)
-        {
-            pendingActions.Add(new ActionExecutor());
-        }
-        pendingActions[0].InsertEffect(0, name, paramstring);
-    }
+
+    //    pendingActions[0].AddEffect(name, paramstring);
+    //}
+
+    //public void AddEffectImmediate(eEffectType name, string paramstring)
+    //{
+    //    if (pendingActions.Count == 0)
+    //    {
+    //        pendingActions.Add(new ActionExecutor());
+    //    }
+    //    pendingActions[0].InsertEffect(0, name, paramstring);
+    //}
 
     private void TickAction()
     {
-        if (pendingActions.Count == 0)
-        {
-            return;
-        }
-        ActionExecutor exec = pendingActions[0];
-        if (exec.isUpdating)
-        {
-            exec.Tick();
-        }
-        else
-        {
-            exec.HandleEffect();
-        }
-        if(exec.isUpdating)
-        {
-            return;
-        }
-        else if (exec.isDone)
-        {
-            Debug.Log("action finish");
-            pendingActions.RemoveAt(0);
-        }
-        else
-        {
-            Debug.Log("action error");
-            pendingActions.RemoveAt(0);
-        }
+        actionExecutor.Tick();
+
+        
     }
 
-    public void AddActionExecutor(ActionExecutor newAction)
-    {
-        pendingActions.Insert(0, newAction);
-    }
+
 
     #endregion
 
 
-    
 
-    Ray ray;
-    RaycastHit hit;
-    private void HandleMouseClick()
+    private List<Vector2Int> path;
+
+    private void HandleMouseClick(SceneClickData data)
     {
-        if (Input.GetMouseButtonDown(0))
+
+
+        if (!isPlayerTurn)
         {
-            if (EventSystem.current.IsPointerOverGameObject())
-            {
-                return;
-             }
-
-            //if (!isPlayerTurn)
-            //{
-            //    return;
-            //}
-            if (Locked)
-            {
-                return;
-            }
-
-            ray = mCamera.ScreenPointToRay(Input.mousePosition);
-            //Ray ray = new Ray(mCamera.transform.position,Vector3.forward);
-
-            if (Physics.Raycast(ray, out hit))
-            {
-                Vector2Int pos = grid1.GetFromPosition(hit.point);
-
-                List<Vector2Int> path = grid1.FindPath(pawn.nowGridPos, pos);
-
-                if (path == null)
-                {
-                    return;
-                }
-
-                for (int i = 0; i < path.Count; i++)
-                {
-                    Debug.Log(path[i].x + " " + path[i].y);
-                }
-
-                pawn.nowGridPos = pos;
-
-                grid1.ShowPath(path);
-
-                StartGoPath(pawn, path);
-                //StartCoroutine(GoPath(path));
-                //pawn.transform.position = grid[pos.x, pos.y]._worldPos;
-
-                //mark.transform.position = hit.point;
-            }
+            return;
         }
+        if (Locked)
+        {
+            return;
+        }
+        if(data.Go.Equals(grid1))
+        {
+            Debug.Log("click on actor " + data.Go.name + " " + grid1.name);
+            return;
+        }
+        Vector2Int pos = grid1.GetFromPosition(data.PosInWorld);
+
+        path = grid1.FindPath(pawn.nowGridPos, pos);
+
+        if (path == null)
+        {
+            return;
+        }
+
+        
+        grid1.ShowPath(path);
+        //StartGoPath(pawn, path);
+        //StartMove(pawn, path);
+    }
+
+
+    public void ConfirmMove()
+    {
+        StartMove(pawn, path);
+        pawn.nowGridPos = path[path.Count-1];
     }
 
 
@@ -404,12 +381,78 @@ public class BattleManager : MonoBehaviour
 
     public void StartGoPath(BaseUnit unit, List<Vector2Int> path)
     {
-        ActionExecutor exec = new ActionExecutor();
-        exec.AddEffectMove(unit, path);
-        exec.AddEffect(eEffectType.Animation, "animanim_002");
-        pendingActions.Add(exec);
+        //ActionExecutor exec = new ActionExecutor();
+        //exec.AddEffectMove(unit, path);
+        //exec.AddEffect(eEffectType.Animation, "animanim_002");
+        //pendingActions.Add(exec);
     }
 
+
+    #region move
+
+    private List<Vector2Int> _path;
+    private BaseUnit _unit;
+    private int _pathIdx = 0;
+    private bool isMoving = false;
+
+    public bool CanMove()
+    {
+        if (actionExecutor.isActioning())
+        {
+            return false;
+        }
+        return true;
+    }
+
+    public void StartMove(BaseUnit target, List<Vector2Int> path)
+    {
+        _path = path;
+        _unit = target;
+        isMoving = true;
+        _pathIdx = 0;
+    }
+
+    public void TickMove()
+    {
+        if (!CanMove())
+        {
+            return;
+        }
+        if (!isMoving)
+        {
+            return;
+        }
+        if(_path == null || _path.Count == 0)
+        {
+            return;
+        }
+
+        if (_pathIdx >= _path.Count)
+        {
+            Unlock();
+            isMoving = false;
+            return;
+        }
+
+
+        Vector3 targetGridWorldPos = grid1.GetWorldPos(_path[_pathIdx].x, _path[_pathIdx].y);
+
+        Vector3 diff = (targetGridWorldPos - _unit.transform.position);
+        Vector3 moveDist = diff.normalized * 3f * Time.deltaTime;
+
+
+        if (moveDist.magnitude >= diff.magnitude)
+        {
+            _unit.transform.position = targetGridWorldPos;
+            ++_pathIdx;
+        }
+        else
+        {
+            _unit.transform.position += moveDist;
+        }
+    }
+
+    #endregion
 
 
 
