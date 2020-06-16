@@ -1,0 +1,6 @@
+
+local Time = CS.UnityEngine.Time
+function onSpellStart()
+	print("do panbian");
+	self:ExecEffectes();
+end
