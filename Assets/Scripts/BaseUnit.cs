@@ -1,18 +1,74 @@
-﻿using System;
+﻿using JetBrains.Annotations;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Animations;
 
 
+public class UnitPropertyFactroy
+{
+    public static List<UnitPropertyConfig> configList = new List<UnitPropertyConfig>(new UnitPropertyConfig[] {
+        new UnitPropertyConfig(ePropertyName.Hp, 0, 0, false),
+        new UnitPropertyConfig(ePropertyName.MAtk, 0, 0, false),
+        new UnitPropertyConfig(ePropertyName.Max, 0, 0, false),
+        new UnitPropertyConfig(ePropertyName.MaxHp, 0, 0, false),
+        new UnitPropertyConfig(ePropertyName.PAtk, 0, 0, false),
+        new UnitPropertyConfig(ePropertyName.Speed, 0, 0, false),
+    });
+
+    static UnitPropertyFactroy(){
+        
+        for(int i=0;i< configList.Count; i++)
+        {
+            UnitPropertyConfig config = configList[i];
+            if(config.dependencies == null)
+            {
+                continue;
+            }
+            for(int j = 0; j < config.dependencies.Count; j++)
+            {
+                int d0 = (int)config.dependencies[j];
+                if (!propertyDependency.ContainsKey(d0))
+                {
+                    propertyDependency[d0] = new List<int>();
+                }
+                propertyDependency[d0].Add(j);
+            }
+        }
+    }
+    public static void Init(BaseUnit target)
+    {
+        target.PropertyArray = new UnitProperty[(int)ePropertyName.Max];
+        for (int i = 0; i < configList.Count; i++)
+        {
+            UnitProperty property = new UnitProperty(target, configList[i]);
+            target.PropertyArray[i] = property;
+        }
+    }
+
+    public static Dictionary<int, List<int>> propertyDependency = new Dictionary<int, List<int>>();
+    public static List<int> GetTrigger(int idx)
+    {
+        if (propertyDependency.ContainsKey(idx))
+        {
+            return propertyDependency[idx];
+        }
+        return null;
+    }
+}
+
 public class UnitConfig
 {
     public Vector3 HitPoint;
     public Vector3 ActPoint;
+
+    public Int64[] PropertyArray = new Int64[(int)ePropertyName.Max];
 }
 public class BaseUnit : MonoBehaviour
 {
     public Int64 InstId;
+    public UnitConfig Config = new UnitConfig();
 
     public Vector2Int nowGridPos;
 
@@ -69,47 +125,137 @@ public class BaseUnit : MonoBehaviour
     public List<Ability> AbilityList = new List<Ability>();
 
 
+    #region property
 
+    public int tmpAtk = 120;
+    public int tmpDef = 222;
 
+    public UnitProperty[] PropertyArray;
 
-    
-
-
-
-    private void InitAbility()
+    public void InitProperty()
     {
-
-        AbilityConfig Config = new AbilityConfig();
-        Config.RangeInt = 600;
-        Config.effects.Add("7,Anim01 start atk");
-
-        Config.effects.Add("5,2");
-        Config.effects.Add("10");
-        //Config.effects.Add("5 50");
-        //Config.effects.Add("6 5");
-
+        UnitPropertyFactroy.Init(this);
+    }
+    public void UpdateProperty()
+    {
+        int cnt = 0;
+        while (true)
         {
-            Ability newAbility = new Ability();
+            bool changed = false;
+            //第一版 无依赖关系
+            for (int i = 0; i < PropertyArray.Length; i++)
+            {
+                if (PropertyArray[i] == null)
+                {
+                    continue;
+                }
+                if (!PropertyArray[i].dirty)
+                {
+                    continue;
+                }
+                changed = true;
+                PropertyArray[i].CalcBase();
+                PropertyArray[i].CalcTotal();
 
-            newAbility.Config = Config;
-            newAbility.owner = this;
+                List<int> mayChange = UnitPropertyFactroy.GetTrigger(i);
+                if (mayChange != null)
+                {
+                    for (int j = 0; j < mayChange.Count; j++)
+                    {
+                        PropertyArray[j].dirty = true;
+                    }
+                }
+                PropertyArray[i].dirty = false;
+            }
+            if (!changed)
+            {
+                break;
+            }
 
-            AbilityList.Add(newAbility);
-
+            if(cnt > 3)
+            {
+                Debug.LogError("不可能出现三层套娃的业务");
+                break;
+            }
         }
-
-
+        
+    }
+    public UnitProperty FindProperty(ePropertyName name)
+    {
+        if (name >= ePropertyName.Max)
         {
-            Ability newAbilityLua = new Ability_Lua("ability_panbian");
-
-            newAbilityLua.Config = Config;
-            newAbilityLua.owner = this;
-
-            AbilityList.Add(newAbilityLua);
+            return null;
         }
+        return PropertyArray[(int)name];
     }
 
-    
+    public Int64 GetConfigProperty(int idx)
+    {
+        if(Config == null)
+        {
+            return -1;
+        }
+
+        if(idx < 0 || idx >= Config.PropertyArray.Length)
+        {
+            return - 1;
+        }
+        return Config.PropertyArray[idx];
+    }
+
+    public Int64 GetFinalProperty(int idx)
+    {
+        if(idx < 0 || idx >= PropertyArray.Length)
+        {
+            return -1;
+        }
+        return PropertyArray[idx].FinalValue;
+    }
+
+    #endregion
+
+
+    #region ability
+
+    private void InitAbility()
+        {
+
+            AbilityConfig Config = new AbilityConfig();
+            Config.RangeInt = 600;
+            Config.effects.Add("7,Anim01 start atk");
+
+            Config.effects.Add("5,2");
+            Config.effects.Add("10");
+            //Config.effects.Add("5 50");
+            //Config.effects.Add("6 5");
+
+            {
+                Ability newAbility = new Ability();
+
+                newAbility.Config = Config;
+                newAbility.owner = this;
+
+                AbilityList.Add(newAbility);
+
+            }
+
+
+            {
+                Ability newAbilityLua = new Ability_Lua("ability_panbian");
+
+                newAbilityLua.Config = Config;
+                newAbilityLua.owner = this;
+
+                AbilityList.Add(newAbilityLua);
+            }
+        }
+    #endregion
+
+
+
+
+
+
 
     public void Tick(float dTime)
     {
@@ -153,74 +299,7 @@ public class BaseUnit : MonoBehaviour
     }
 
 
-    public int extraAtk;
-
-
-
-
-
-    public int tmpAtk = 120;
-    public int tmpDef = 222;
-    
-    public UnitProperty[] PropertyArray;
-
-    public void InitProperty()
-    {
-        PropertyArray = new UnitProperty[(int)ePropertyName.Max];
-        for(int i=1;i< PropertyArray.Length; i++)
-        {
-            //if(hasproperty)
-            PropertyArray[i] = new UnitProperty(this, (ePropertyName)i);
-        }
-    }
-    public UnitProperty FindProperty(ePropertyName name)
-    {
-        if(name >= ePropertyName.Max)
-        {
-            return null;
-        }
-        return PropertyArray[(int)name];
-    }
-
-    public void getConfigProperty()
-    {
-
-    }
-
-
-    public void UpdateProperty()
-    {
-
-        List<int> modifiedProperty = new List<int>();
-
-        //第一版 无依赖关系
-        for(int i=0; i< PropertyArray.Length; i++)
-        {
-            if(PropertyArray[i] == null)
-            {
-                continue;
-            }
-            if (!PropertyArray[i].dirty)
-            {
-                continue;
-            }
-
-            PropertyArray[i].CalcBase();
-            PropertyArray[i].CalcTotal();
-
-            PropertyArray[i].dirty = false;
-        }
-    }
-
-    private Dictionary<ePropertyName, Int64> FixedValueDict = new Dictionary<ePropertyName, Int64>();
-    private Int64 GetFixedValue(ePropertyName name)
-    {
-        if (FixedValueDict.ContainsKey(name))
-        {
-            return FixedValueDict[name];
-        }
-        return -1;
-    }
+    #region modifier
 
     public List<ModifierInstance> ModifierList = new List<ModifierInstance>();
 
@@ -228,7 +307,7 @@ public class BaseUnit : MonoBehaviour
 
     public void AddModifierAtkTest()
     {
-        if(!ModifierConfigMap.ContainsKey("big atk"))
+        if (!ModifierConfigMap.ContainsKey("big atk"))
         {
             ModifierConfig config = new ModifierConfig();
             {
@@ -269,15 +348,15 @@ public class BaseUnit : MonoBehaviour
     {
 
         ModifierInstance toRemove = null;
-        for (int i= ModifierList.Count-1; i >= 0; i--)
+        for (int i = ModifierList.Count - 1; i >= 0; i--)
         {
-            if(ModifierList[i].Config.ModifierName == name)
+            if (ModifierList[i].Config.ModifierName == name)
             {
                 toRemove = ModifierList[i];
                 ModifierList.RemoveAt(i);
             }
         }
-        if(toRemove != null)
+        if (toRemove != null)
         {
             List<ModifierEffect> effects = toRemove.Config.ModifierEffects;
             for (int i = 0; i < effects.Count; i++)
@@ -291,6 +370,10 @@ public class BaseUnit : MonoBehaviour
             }
         }
     }
+
+    #endregion
+
+
 
     List<ModifierInstance> toRemove = new List<ModifierInstance>();
     public void OnTurnFinish()

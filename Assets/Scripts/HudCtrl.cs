@@ -84,7 +84,7 @@ public class HudCtrl : MonoBehaviour
     public void ShowInfo(BaseUnit target)
     {
         UnitName.text = target.name;
-        Int64 v = target.PropertyArray[(int)ePropertyName.MAtk].TotalValue;
+        Int64 v = target.PropertyArray[(int)ePropertyName.MAtk].FinalValue;
         UnitAtkText.text = v + "";
         UnitDefText.text = target.tmpDef + "";
         if (!InfoPanel.gameObject.activeSelf)
