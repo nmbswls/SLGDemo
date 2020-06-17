@@ -462,7 +462,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &377416831
 RectTransform:
   m_ObjectHideFlags: 0
@@ -572,7 +572,7 @@ GameObject:
   - component: {fileID: 378929736}
   - component: {fileID: 378929735}
   - component: {fileID: 378929740}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -616,7 +616,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 378929734}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -974,6 +974,7 @@ MonoBehaviour:
   AttackBtn: {fileID: 0}
   NextTurnBtn: {fileID: 0}
   MoveBtn: {fileID: 0}
+  AttackBtnTxt: {fileID: 0}
   NowTurnInfo: {fileID: 0}
 --- !u!1 &800098179
 GameObject:
@@ -1422,7 +1423,8 @@ MonoBehaviour:
   BaseUnitPrefab: {fileID: 1222138415483598604, guid: a9ab9cdad2abfb540ae4fe47f0efe72e,
     type: 3}
   BattleUnits: []
-  hudState: 0
+  hudCtrl: {fileID: 592216235}
+  mRangeIndicator: {fileID: 0}
 --- !u!4 &2120383785
 Transform:
   m_ObjectHideFlags: 0

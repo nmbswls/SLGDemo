@@ -22,7 +22,8 @@ public enum eEffectType
     Animation = 7,
     RunScript = 8,
     CallFunc = 9,
-    Max = 10,
+    LaunchProj = 10,
+    Max = 11,
 }
 
 
@@ -117,35 +118,9 @@ public class ActionExecutor
             }
             NodeList.Remove(first);
         }
-        
-        //ExecRet ret = first.Tick();
-        //if (ret != ExecRet.UPDATING)
-        //{
-        //    NodeList.RemoveAt(0);
-        //    HandleEffect();
-        //}
     }
 
-    public void HandleEffect()
-    {
 
-        //ActionNode first;
-        //while (NodeList.Count > 0)
-        //{
-        //    first = NodeList[0];
-        //    ExecRet ret = first.Exec();
-        //    if (ret == ExecRet.UPDATING)
-        //    {
-        //        return;
-        //    }
-        //    NodeList.RemoveAt(0);
-        //    if (ret == ExecRet.FAIL)
-        //    {
-        //        Debug.Log("error ");
-        //        return;
-        //    }
-        //}
-    }
 
 
     public void AddActionNode(ActionNode newNode)
@@ -529,4 +504,36 @@ public class ActionNode_Timeline : ActionNode
     }
 
 
+}
+
+public class ActionNode_LaunchProj : ActionNode
+{
+    private SlgProjectile proj;
+
+    public ActionNode_LaunchProj(BaseUnit target, BaseUnit source) : base(eEffectType.LaunchProj)
+    {
+        proj = ProjectileManager.Instance.createProjectile(target, source, 800);
+    }
+
+    public override void Tick()
+    {
+        if (proj.reached)
+        {
+            state = eActionNodeState.Finished;
+        }
+    }
+
+    public override void Exec()
+    {
+        Debug.Log("launch");
+        if (proj == null)
+        {
+            state = eActionNodeState.Finished;
+            Debug.Log("launch fail");
+
+            return;
+        }
+        ProjectileManager.Instance.AddProj(proj);
+        state = eActionNodeState.Updating;
+    }
 }

@@ -1,3 +1,6 @@
+// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 Shader "Custom/Circle" {
 	Properties {
 		_Color ("Color", Color) = (1,1,1,1)
@@ -31,7 +34,7 @@ Shader "Custom/Circle" {
 			float4 _MainTex_ST;
 				v2f vert (appdata_base v){
 				v2f o;
-				o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.pos = UnityObjectToClipPos(v.vertex);
 				o.oPos = v.vertex;
 				return o;
 			}
@@ -42,7 +45,7 @@ Shader "Custom/Circle" {
 				if(dis > 0.5){
 					discard;
 				}else{
-					float ringWorldRange = _Object2World[0][0];
+					float ringWorldRange = unity_ObjectToWorld[0][0];
 					float minDistance =(ringWorldRange * 0.43 - _Width)/ringWorldRange * 0.9;
 					if(dis < minDistance){
 						discard;
@@ -58,4 +61,3 @@ Shader "Custom/Circle" {
 	 
 	FallBack "Diffuse"
 }
-https://blog.csdn.net/yaojiawudi/article/details/64924160

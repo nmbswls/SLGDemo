@@ -114,6 +114,37 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
             pathViewList[i].SetActive(false);
         }
     }
+    public void ShowPath(List<Vector3> path, int outRangeIdx)
+    {
+        if (path == null)
+        {
+            for (int i = 0; i < pathViewList.Length; i++)
+            {
+                pathViewList[i].SetActive(false);
+            }
+            return;
+        }
+
+        for (int i = 0; i < path.Count; i++)
+        {
+
+            pathViewList[i].transform.position = path[i];
+            pathViewList[i].SetActive(true);
+            if(i >= outRangeIdx)
+            {
+                pathViewList[i].GetComponent<Renderer>().material.color = Color.red; //当材质球的Shader为标准时,可直接使用此方法修改颜色值
+            }
+            else
+            {
+                pathViewList[i].GetComponent<Renderer>().material.color = Color.green; //当材质球的Shader为标准时,可直接使用此方法修改颜色值
+            }
+        }
+
+        for (int i = path.Count; i < pathViewList.Length; i++)
+        {
+            pathViewList[i].SetActive(false);
+        }
+    }
 
     public Vector2Int GetCenter()
     {
@@ -246,7 +277,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
                 float a = i / (float)gridCntX;
                 if (node.blocked)
                 {
-                    GL.Color(new Color(1, 0, 0.3f));
+                    GL.Color(new Color(1, 0, 0.3f,0.8f));
                     GL.Vertex(node._worldPos + new Vector3(-diff, 0, -diff));
                     GL.Vertex(node._worldPos + new Vector3(diff, 0, diff));
 
@@ -255,7 +286,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
                 }
                 else
                 {
-                    GL.Color(new Color(0, 1, 0.35f));
+                    GL.Color(new Color(0, 1, 0.35f,0.8f));
                 }
 
 

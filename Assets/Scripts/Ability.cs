@@ -52,6 +52,7 @@ public class AbilityConfig
     public int id;
     public int cd;
     public int atk;
+    public int RangeInt; //施法距离多少码
     public int ChannelTurn;
     public float PointTime; //动画前摇时间
     public float TotalTime; //动画总时间
@@ -139,11 +140,16 @@ public class Ability
             string param = Config.effects[i];
 
             int splitIdx = param.IndexOf(',');
-            if(splitIdx == -1)
+            int typeInt;
+            if (splitIdx == -1)
             {
-                continue;
+                typeInt = int.Parse(param);
             }
-            int typeInt = int.Parse(param.Substring(0, splitIdx));
+            else
+            {
+                typeInt = int.Parse(param.Substring(0, splitIdx));
+            }
+
             if( typeInt <= (int)eEffectType.Nonde || typeInt >= (int)eEffectType.Max)
             {
                 continue;
@@ -157,15 +163,15 @@ public class Ability
             {
                 node = new ActionNode_Damage(-1,-1, long.Parse(param.Substring(splitIdx + 1)));
             }
+            else if (typeInt == (int)eEffectType.LaunchProj)
+            {
+                node = new ActionNode_LaunchProj(Target, Caster);
+            }
             else
             {
                 node = ActionNodeFactroy.CreateFromString((eEffectType)typeInt, param.Substring(splitIdx+1));
-                Debug.Log("new node type:" + node.eid);
             }
-
-            
-
-            
+            Debug.Log("new node type:" + node.eid);
             //exec.AddActionNode(node);
             exec.AddImmediateActionNode(i,node);
         }
@@ -180,10 +186,48 @@ public class Ability
     {
 
     }
+
+
+    public bool TryUseAbility()
+    {
+        //cost
+        Caster = owner;
+        Target = null;
+        UseAbility();
+        return true;
+    }
+
+    public bool TryUseAbility(BaseUnit target)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+        float dist = (target.GetWorldPos2D() - owner.GetWorldPos2D()).magnitude;
+        //cost
+        if (dist * 100 > Config.RangeInt)
+        {
+            Debug.Log("chaochu juli");
+            return false;
+        }
+
+        Caster = owner;
+        Target = target;
+        UseAbility();
+        return true;
+    }
+
+    public bool TryUseAbility(Vector2 targetPos)
+    {
+        Caster = owner;
+        Target = null;
+        UseAbility();
+        return true;
+    }
+
     public void UseAbility()
     {
-        //check cost 
-        //失败则返回
+
         SwitchPhase(eAbilityPhase.BeforeStart);
         ActionExecutor exec = BattleManager.Instance.actionExecutor;
 

@@ -4,15 +4,37 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Animations;
 
+
+public class UnitConfig
+{
+    public Vector3 HitPoint;
+    public Vector3 ActPoint;
+}
 public class BaseUnit : MonoBehaviour
 {
     public Int64 InstId;
 
     public Vector2Int nowGridPos;
 
+    //放入config中
+    public Vector3 HitPoint = Vector3.up * 0.5f;
+    public Vector3 ActPoint = Vector3.up * 1.5f;
+    public float MovePoint = 0;
+    
     public void AdjustPos()
     {
         transform.position = BattleManager.Instance.grid1.grid[nowGridPos.x, nowGridPos.y]._worldPos;
+    }
+
+    public Vector2 GetWorldPos2D()
+    {
+        Vector3 pos = BattleManager.Instance.grid1.grid[nowGridPos.x, nowGridPos.y]._worldPos;
+        return new Vector2(pos.x, pos.z);
+    }
+    public Vector3 GetWorldPos()
+    {
+        Vector3 pos = BattleManager.Instance.grid1.grid[nowGridPos.x, nowGridPos.y]._worldPos;
+        return pos;
     }
 
     [System.Serializable]
@@ -27,6 +49,9 @@ public class BaseUnit : MonoBehaviour
     SceneClickable listener;
     public void Init()
     {
+        HitPoint = Vector3.up * 0.5f;
+        ActPoint = Vector3.up * 1.5f;
+
         InitProperty();
         InitAbility();
 
@@ -55,9 +80,11 @@ public class BaseUnit : MonoBehaviour
     {
 
         AbilityConfig Config = new AbilityConfig();
+        Config.RangeInt = 600;
         Config.effects.Add("7,Anim01 start atk");
 
         Config.effects.Add("5,2");
+        Config.effects.Add("10");
         //Config.effects.Add("5 50");
         //Config.effects.Add("6 5");
 
@@ -65,6 +92,7 @@ public class BaseUnit : MonoBehaviour
             Ability newAbility = new Ability();
 
             newAbility.Config = Config;
+            newAbility.owner = this;
 
             AbilityList.Add(newAbility);
 
@@ -75,19 +103,13 @@ public class BaseUnit : MonoBehaviour
             Ability newAbilityLua = new Ability_Lua("ability_panbian");
 
             newAbilityLua.Config = Config;
+            newAbilityLua.owner = this;
+
             AbilityList.Add(newAbilityLua);
         }
     }
 
-    public void UseAbility(int slot)
-    {
-        if(slot < 0 || slot >= AbilityList.Count)
-        {
-            return;
-        }
-
-        AbilityList[slot].UseAbility();
-    }
+    
 
     public void Tick(float dTime)
     {
@@ -123,6 +145,7 @@ public class BaseUnit : MonoBehaviour
         SILENCED = 0x04,
     }
 
+
     public UInt64 mUnitState = 0;
     public void SetState(UInt64 state)
     {
@@ -135,8 +158,10 @@ public class BaseUnit : MonoBehaviour
 
 
 
-    
 
+    public int tmpAtk = 120;
+    public int tmpDef = 222;
+    
     public UnitProperty[] PropertyArray;
 
     public void InitProperty()
@@ -155,6 +180,11 @@ public class BaseUnit : MonoBehaviour
             return null;
         }
         return PropertyArray[(int)name];
+    }
+
+    public void getConfigProperty()
+    {
+
     }
 
 
@@ -196,6 +226,21 @@ public class BaseUnit : MonoBehaviour
 
     public Dictionary<string, ModifierConfig> ModifierConfigMap = new Dictionary<string, ModifierConfig>();
 
+    public void AddModifierAtkTest()
+    {
+        if(!ModifierConfigMap.ContainsKey("big atk"))
+        {
+            ModifierConfig config = new ModifierConfig();
+            {
+                ModifierEffect eee = new ModifierEffect();
+                eee.propertyName = ePropertyName.MAtk;
+                eee.value = 10000;
+                config.ModifierEffects.Add(eee);
+            }
+            ModifierConfigMap["big atk"] = config;
+        }
+        AddModifier("big atk");
+    }
     public void AddModifier(string name)
     {
         //从map里寻找
@@ -206,7 +251,7 @@ public class BaseUnit : MonoBehaviour
 
         ModifierConfig config = ModifierConfigMap[name];
         ModifierInstance modifier = new ModifierInstance(config);
-        List<ModifierEffectConfig> effects = config.ModifierEffects;
+        List<ModifierEffect> effects = config.ModifierEffects;
 
         for (int i = 0; i < effects.Count; i++)
         {
@@ -217,6 +262,7 @@ public class BaseUnit : MonoBehaviour
             }
             toMod.AddExtraValue(modifier.InstId, effects[i]);
         }
+        UpdateProperty();
     }
 
     public void RemoveModifier(string name)
@@ -233,7 +279,7 @@ public class BaseUnit : MonoBehaviour
         }
         if(toRemove != null)
         {
-            List<ModifierEffectConfig> effects = toRemove.Config.ModifierEffects;
+            List<ModifierEffect> effects = toRemove.Config.ModifierEffects;
             for (int i = 0; i < effects.Count; i++)
             {
                 UnitProperty toMod = FindProperty(effects[i].propertyName);
@@ -245,6 +291,35 @@ public class BaseUnit : MonoBehaviour
             }
         }
     }
+
+    List<ModifierInstance> toRemove = new List<ModifierInstance>();
+    public void OnTurnFinish()
+    {
+        toRemove = new List<ModifierInstance>();
+        for(int i=0;i< ModifierList.Count; i++)
+        {
+            ModifierInstance modifier = ModifierList[i];
+
+            modifier.OnTurnEnd();
+
+            modifier.Duration -= 1;
+            if (modifier.Duration <= 0)
+            {
+                toRemove.Add(modifier);
+            }
+        }
+
+        for(int i=0;i< toRemove.Count; i++)
+        {
+            ModifierList.Remove(toRemove[i]);
+        }
+    }
+
+    public void OnTurnBegin()
+    {
+        MovePoint = 5.0f;
+    }
+
 }
 
 
@@ -268,15 +343,43 @@ public class ModifierInstance
         this.Config = config;
         InstId = 100;
     }
+
+    public virtual void OnCreate()
+    {
+
+    }
+
+    public virtual void OnDestroy()
+    {
+
+    }
+
+    public virtual void OnTurnBegin()
+    {
+
+    }
+
+    public virtual void OnTurnEnd()
+    {
+        for(int i=0;i< Config.TurnEndEffects.Count; i++)
+        {
+            Debug.Log(Config.TurnEndEffects[i]);
+        }
+    }
+
+    public virtual void OnStackCountChanged()
+    {
+
+    }
 }
 
-public class ModifierEffectInstance
-{
-    public ModifierInstance parent;
-    public ModifierEffectConfig config;
-}
+//public class ModifierEffectInstance
+//{
+//    public ModifierInstance parent;
+//    public ModifierEffectConfig config;
+//}
 
-public class ModifierEffectConfig
+public class ModifierEffect
 {
     public ePropertyName propertyName;
     public Int64 value;
@@ -286,7 +389,7 @@ public class ModifierConfig
 {
 
     public string ModifierName;
-    public List<ModifierEffectConfig> ModifierEffects = new List<ModifierEffectConfig>();
+    public List<ModifierEffect> ModifierEffects = new List<ModifierEffect>();
 
 
 
@@ -328,25 +431,7 @@ public class ModifierConfig
         set { _textureName = value; }
     }
 
-    public virtual void OnCreate()
-    {
+    public List<string> TurnEndEffects = new List<string>();
+    public List<string> CreateEffects = new List<string>();
 
-    }
-
-    public virtual void OnDestroy()
-    {
-
-    }
-
-    public virtual void OnTick()
-    {
-
-    }
-
-    public virtual void OnStackCountChanged()
-    {
-
-    }
-
-    
 }

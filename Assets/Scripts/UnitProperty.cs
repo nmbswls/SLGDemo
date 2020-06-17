@@ -17,7 +17,7 @@ public enum ePropertyName
 public class EffectNode
 {
     public int parentId;
-    public ModifierEffectConfig config;
+    public Int64 value;
 }
 public class UnitProperty
 {
@@ -31,7 +31,8 @@ public class UnitProperty
     public List<EffectNode> extra = new List<EffectNode>();
 
     public bool isLua = false;
-    
+    public Int64 TotalValue;
+    public int calcMode;
 
     public UnitProperty(BaseUnit owner, ePropertyName name)
     {
@@ -39,11 +40,11 @@ public class UnitProperty
         this.name = name;
     }
 
-    public void AddExtraValue(int buffInstId, ModifierEffectConfig config)
+    public void AddExtraValue(int buffInstId, ModifierEffect config)
     {
         EffectNode node = new EffectNode();
         node.parentId = buffInstId;
-        node.config = config;
+        node.value = config.value;
         extra.Add(node);
 
         dirty = true;
@@ -63,11 +64,19 @@ public class UnitProperty
 
     public virtual void CalcBase()
     {
-        //BaseValue = (T)owner.GetBaseProperty<T>(idx);
-        return;
+        BaseValue = 100;
     }
     public virtual void CalcTotal()
     {
+        TotalValue = 0;
+        if (calcMode == 0)
+        {
+            for(int i = 0; i < extra.Count; i++)
+            {
+                TotalValue += extra[i].value;
+            }
+        }
+        TotalValue += BaseValue;
         return;
     }
 
