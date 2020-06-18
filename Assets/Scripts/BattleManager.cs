@@ -78,11 +78,7 @@ public class BattleManager : MonoBehaviour
         TickAction();
         TickMove();
 
-        if (Input.GetKeyDown(KeyCode.B))
-        {
-            nowTurnActor.AddModifierAtkTest();
-            hudCtrl.UpdateInfo();
-        }
+        
 
         ProjectileManager.Instance.Tick(Time.deltaTime);
     }
@@ -138,7 +134,7 @@ public class BattleManager : MonoBehaviour
     {
         mouseState = newState;
         pathPreview = null;
-        grid1.ShowPath(null);
+        grid1.ShowPathPots(null);
         if(newState == eMouseState.Normal)
         {
             HideAtkRange();
@@ -272,7 +268,7 @@ public class BattleManager : MonoBehaviour
 
     List<ActorTurnNode> NowRoundActionSeq;
     List<ActorTurnNode> NextRoundActionSeq;
-    BaseUnit nowTurnActor;
+    public BaseUnit nowTurnActor;
     bool isPlayerTurn;
 
     void InitBattle()
@@ -418,37 +414,6 @@ public class BattleManager : MonoBehaviour
     //public List<TimelineExecutor> pendingActions = new List<TimelineExecutor>();
     public ActionExecutor actionExecutor = new ActionExecutor();
 
-    //public void AddEffect(global::ActionNode newNode)
-    //{
-    //    if (pendingActions.Count == 0)
-    //    {
-    //        pendingActions.Add(new ActionExecutor());
-    //    }
-
-
-    //    pendingActions[0].AddEffectNode(newNode);
-    //}
-
-
-    //public void AddEffect(eEffectType name, string paramstring)
-    //{
-    //    if (pendingActions.Count == 0)
-    //    {
-    //        pendingActions.Add(new ActionExecutor());
-    //    }
-
-
-    //    pendingActions[0].AddEffect(name, paramstring);
-    //}
-
-    //public void AddEffectImmediate(eEffectType name, string paramstring)
-    //{
-    //    if (pendingActions.Count == 0)
-    //    {
-    //        pendingActions.Add(new ActionExecutor());
-    //    }
-    //    pendingActions[0].InsertEffect(0, name, paramstring);
-    //}
 
     private void TickAction()
     {
@@ -602,6 +567,7 @@ public class BattleManager : MonoBehaviour
     //}
     public void StartMove(BaseUnit target, List<Vector3> path)
     {
+        Lock();
         _movingPath = path;
         _unit = target;
         isMoving = true;
@@ -655,6 +621,7 @@ public class BattleManager : MonoBehaviour
         {
             _unit.transform.position = targetGridWorldPos;
             nowTurnActor.MovePoint -= diff.magnitude;
+            grid1.HidePathSpot(_pathIdx);
             ++_pathIdx;
             //check new point
         }

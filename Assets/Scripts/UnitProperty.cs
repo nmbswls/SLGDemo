@@ -28,7 +28,7 @@ public class UnitPropertyConfig
     public bool isLua;
     public int calcMode; //1 add 2 multi 3 or
     public int valueType; //0 int 2 float 3 bit
-    public List<ePropertyName> dependencies;
+    public List<int> dependencies = new List<int>();
     public string method; 
 
     public UnitPropertyConfig(ePropertyName name, int calcMode, int valueType, bool isLua)
@@ -91,6 +91,10 @@ public class UnitProperty
     public virtual void CalcBase()
     {
         BaseValue = owner.GetConfigProperty((int)Config.name);
+        if(Config.name == ePropertyName.MaxHp)
+        {
+            BaseValue += owner.GetFinalProperty((int)ePropertyName.MAtk) / 10;
+        }
     }
     public virtual void CalcTotal()
     {

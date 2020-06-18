@@ -18,6 +18,11 @@ public class HudCtrl : MonoBehaviour
     public Text UnitName;
     public Text UnitAtkText;
     public Text UnitDefText;
+    public Text UnitHpText;
+
+    public Button DebugBtn1;
+    public Button DebugBtn2;
+    public Button DebugBtn3;
 
     // Start is called before the first frame update
     void Start()
@@ -39,6 +44,11 @@ public class HudCtrl : MonoBehaviour
         UnitName = InfoPanel.Find("Name").GetComponent<Text>();
         UnitAtkText = InfoPanel.Find("Atk_value").GetComponent<Text>();
         UnitDefText = InfoPanel.Find("Def_value").GetComponent<Text>();
+        UnitHpText = InfoPanel.Find("Hp_value").GetComponent<Text>();
+
+        DebugBtn1 = transform.Find("TestBtn1").GetComponent<Button>();
+        DebugBtn2 = transform.Find("TestBtn2").GetComponent<Button>();
+        DebugBtn3 = transform.Find("TestBtn3").GetComponent<Button>();
 
         AttackBtn.onClick.AddListener(delegate()
         {
@@ -63,7 +73,29 @@ public class HudCtrl : MonoBehaviour
 
         });
 
-        
+        DebugBtn1.onClick.AddListener(delegate ()
+        {
+
+            BattleManager.Instance.nowTurnActor.AddModifierAtkBig();
+            UpdateInfo();
+            //BattleManager.Instance.PlayerFinishTurn();
+
+        });
+
+        DebugBtn2.onClick.AddListener(delegate ()
+        {
+            BattleManager.Instance.nowTurnActor.AddModifierAtkSmall();
+            UpdateInfo();
+
+        });
+        DebugBtn3.onClick.AddListener(delegate ()
+        {
+            BattleManager.Instance.nowTurnActor.RemoveAllModifier();
+            UpdateInfo();
+        });
+
+
+
     }
     private bool isAttacking = false;
     public void SwitchAttackBtn()
@@ -84,9 +116,12 @@ public class HudCtrl : MonoBehaviour
     public void ShowInfo(BaseUnit target)
     {
         UnitName.text = target.name;
-        Int64 v = target.PropertyArray[(int)ePropertyName.MAtk].FinalValue;
+        Int64 v = target.GetFinalProperty((int)ePropertyName.MAtk);
         UnitAtkText.text = v + "";
         UnitDefText.text = target.tmpDef + "";
+
+        UnitHpText.text = target.GetFinalProperty((int)ePropertyName.MaxHp) + "";
+
         if (!InfoPanel.gameObject.activeSelf)
         {
             InfoPanel.gameObject.SetActive(true);

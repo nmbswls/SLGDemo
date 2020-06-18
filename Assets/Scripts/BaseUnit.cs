@@ -8,18 +8,39 @@ using UnityEngine.Animations;
 
 public class UnitPropertyFactroy
 {
-    public static List<UnitPropertyConfig> configList = new List<UnitPropertyConfig>(new UnitPropertyConfig[] {
-        new UnitPropertyConfig(ePropertyName.Hp, 0, 0, false),
-        new UnitPropertyConfig(ePropertyName.MAtk, 0, 0, false),
-        new UnitPropertyConfig(ePropertyName.Max, 0, 0, false),
-        new UnitPropertyConfig(ePropertyName.MaxHp, 0, 0, false),
-        new UnitPropertyConfig(ePropertyName.PAtk, 0, 0, false),
-        new UnitPropertyConfig(ePropertyName.Speed, 0, 0, false),
-    });
+    public static List<UnitPropertyConfig> configList = new List<UnitPropertyConfig>();
 
     static UnitPropertyFactroy(){
+
+
+        {
+            UnitPropertyConfig config = new UnitPropertyConfig(ePropertyName.Hp, 0, 0, false);
+            config.dependencies.Add(2);
+            configList.Add(config);
+        }
+        {
+            UnitPropertyConfig config = new UnitPropertyConfig(ePropertyName.MAtk, 0, 0, false);
+            
+            configList.Add(config);
+        }
+        {
+            UnitPropertyConfig config = new UnitPropertyConfig(ePropertyName.MaxHp, 0, 0, false);
+            config.dependencies.Add(5);
+            configList.Add(config);
+        }
+        {
+            UnitPropertyConfig config = new UnitPropertyConfig(ePropertyName.PAtk, 0, 0, false);
+            configList.Add(config);
+        }
+        {
+            UnitPropertyConfig config = new UnitPropertyConfig(ePropertyName.Speed, 0, 0, false);
+            configList.Add(config);
+        }
         
-        for(int i=0;i< configList.Count; i++)
+        
+
+
+        for (int i=0;i< configList.Count; i++)
         {
             UnitPropertyConfig config = configList[i];
             if(config.dependencies == null)
@@ -33,9 +54,14 @@ public class UnitPropertyFactroy
                 {
                     propertyDependency[d0] = new List<int>();
                 }
-                propertyDependency[d0].Add(j);
+
+                Debug.Log("add dependency:" + d0 + " trigger " + i);
+
+                propertyDependency[d0].Add((int)config.name);
             }
         }
+
+
     }
     public static void Init(BaseUnit target)
     {
@@ -43,7 +69,7 @@ public class UnitPropertyFactroy
         for (int i = 0; i < configList.Count; i++)
         {
             UnitProperty property = new UnitProperty(target, configList[i]);
-            target.PropertyArray[i] = property;
+            target.PropertyArray[(int)configList[i].name] = property;
         }
     }
 
@@ -157,12 +183,15 @@ public class BaseUnit : MonoBehaviour
                 PropertyArray[i].CalcBase();
                 PropertyArray[i].CalcTotal();
 
+                Debug.Log("calc " + i);
+
                 List<int> mayChange = UnitPropertyFactroy.GetTrigger(i);
                 if (mayChange != null)
                 {
                     for (int j = 0; j < mayChange.Count; j++)
                     {
-                        PropertyArray[j].dirty = true;
+                        Debug.Log("may change "+mayChange[j]);
+                        PropertyArray[mayChange[j]].dirty = true;
                     }
                 }
                 PropertyArray[i].dirty = false;
@@ -189,28 +218,36 @@ public class BaseUnit : MonoBehaviour
         return PropertyArray[(int)name];
     }
 
+    public Int64 GetFinalProperty(int idx)
+    {
+        
+        if (idx < 0 || idx >= PropertyArray.Length)
+        {
+            return 0;
+        }
+        if (PropertyArray[idx] == null)
+        {
+            return 0;
+        }
+        return PropertyArray[idx].FinalValue;
+    }
+
     public Int64 GetConfigProperty(int idx)
     {
         if(Config == null)
         {
-            return -1;
+            return 0;
         }
 
         if(idx < 0 || idx >= Config.PropertyArray.Length)
         {
-            return - 1;
+            return 0;
         }
+
         return Config.PropertyArray[idx];
     }
 
-    public Int64 GetFinalProperty(int idx)
-    {
-        if(idx < 0 || idx >= PropertyArray.Length)
-        {
-            return -1;
-        }
-        return PropertyArray[idx].FinalValue;
-    }
+
 
     #endregion
 
@@ -305,7 +342,7 @@ public class BaseUnit : MonoBehaviour
 
     public Dictionary<string, ModifierConfig> ModifierConfigMap = new Dictionary<string, ModifierConfig>();
 
-    public void AddModifierAtkTest()
+    public void AddModifierAtkBig()
     {
         if (!ModifierConfigMap.ContainsKey("big atk"))
         {
@@ -320,6 +357,24 @@ public class BaseUnit : MonoBehaviour
         }
         AddModifier("big atk");
     }
+
+    public void AddModifierAtkSmall()
+    {
+        if (!ModifierConfigMap.ContainsKey("small atk"))
+        {
+            ModifierConfig config = new ModifierConfig();
+            {
+                ModifierEffect eee = new ModifierEffect();
+                eee.propertyName = ePropertyName.MAtk;
+                eee.value = 100;
+                config.ModifierEffects.Add(eee);
+            }
+            ModifierConfigMap["small atk"] = config;
+        }
+        AddModifier("small atk");
+    }
+
+
     public void AddModifier(string name)
     {
         //从map里寻找
@@ -329,8 +384,10 @@ public class BaseUnit : MonoBehaviour
         }
 
         ModifierConfig config = ModifierConfigMap[name];
-        ModifierInstance modifier = new ModifierInstance(config);
+        ModifierInstance modifier = new ModifierInstance(this, config);
         List<ModifierEffect> effects = config.ModifierEffects;
+
+        ModifierList.Add(modifier);
 
         for (int i = 0; i < effects.Count; i++)
         {
@@ -344,42 +401,103 @@ public class BaseUnit : MonoBehaviour
         UpdateProperty();
     }
 
+
+
+    private bool isDoingRemove = false;
+    private bool isDoingAdd = false;
+    List<ModifierInstance> toRemoveList = new List<ModifierInstance>();
+    List<ModifierInstance> toAddList = new List<ModifierInstance>();
+
+    public void RemoveAllModifier()
+    {
+        //List<ModifierInstance>
+        for (int i = ModifierList.Count - 1; i >= 0; i--)
+        {
+            //toRemove = ModifierList[i];
+            toRemoveList.Add(ModifierList[i]);
+            ModifierList[i].isRemoved = true;
+            ModifierList.RemoveAt(i);
+        }
+
+        if (!isDoingRemove)
+        {
+            DoHandleRemoveList();
+        }
+
+        //while (toRemoveList.Count > 0)
+        //{
+        //    ModifierInstance inst = toRemoveList[0];
+        //    inst.RemoveEffects();
+        //    inst.OnDestroy();
+        //    toRemoveList.RemoveAt(0);
+        //}
+        
+    }
+
+    public void DoHandleRemoveList()
+    {
+        isDoingRemove = true;
+        while (toRemoveList.Count > 0)
+        {
+            ModifierInstance inst = toRemoveList[0];
+            inst.RemoveEffects();
+            inst.OnDestroy();
+            toRemoveList.RemoveAt(0);
+        }
+        UpdateProperty();
+        isDoingRemove = false;
+    }
+
     public void RemoveModifier(string name)
     {
 
-        ModifierInstance toRemove = null;
+        ModifierInstance toRemove;
         for (int i = ModifierList.Count - 1; i >= 0; i--)
         {
             if (ModifierList[i].Config.ModifierName == name)
             {
-                toRemove = ModifierList[i];
-                ModifierList.RemoveAt(i);
-            }
-        }
-        if (toRemove != null)
-        {
-            List<ModifierEffect> effects = toRemove.Config.ModifierEffects;
-            for (int i = 0; i < effects.Count; i++)
-            {
-                UnitProperty toMod = FindProperty(effects[i].propertyName);
-                if (toMod == null)
+                if (ModifierList[i].isRemoved)
                 {
                     continue;
                 }
-                toMod.RemoveExtraValue(toRemove.InstId);
+                toRemove = ModifierList[i];
+                toRemove.isRemoved = true;
+                toRemoveList.Add(toRemove);
+                ModifierList.RemoveAt(i);
             }
         }
+
+        if (!isDoingRemove)
+        {
+            DoHandleRemoveList();
+
+        }
+
+        //destoy flag while while1 while2
     }
 
     #endregion
 
-
-
-    List<ModifierInstance> toRemove = new List<ModifierInstance>();
-    public void OnTurnFinish()
+    public void DestroyModifer()
     {
-        toRemove = new List<ModifierInstance>();
-        for(int i=0;i< ModifierList.Count; i++)
+        for (int i = ModifierList.Count - 1; i >= 0; i--)
+        {
+            if (ModifierList[i].Config.ModifierName == name)
+            {
+                if (ModifierList[i].isRemoved)
+                {
+                    continue;
+                }
+                ModifierList[i].needDestroy = true;
+            }
+        }
+    }
+
+
+    //入口 移除 回合结束
+    public void TestDestroy()
+    {
+        for (int i = 0; i <= ModifierList.Count; i--)
         {
             ModifierInstance modifier = ModifierList[i];
 
@@ -388,14 +506,64 @@ public class BaseUnit : MonoBehaviour
             modifier.Duration -= 1;
             if (modifier.Duration <= 0)
             {
-                toRemove.Add(modifier);
+                modifier.needDestroy = true;
             }
         }
 
-        for(int i=0;i< toRemove.Count; i++)
+        while (true)
         {
-            ModifierList.Remove(toRemove[i]);
+            bool changed = false;
+            for (int i = ModifierList.Count - 1; i >= 0; i--)
+            {
+                if (ModifierList[i].needDestroy)
+                {
+                    ModifierList[i].isRemoved = true;
+                    toRemoveList.Add(ModifierList[i]);
+                    ModifierList.RemoveAt(i);
+                    changed = true;
+                }
+            }
+
+            while(toRemoveList.Count > 0)
+            {
+                ModifierInstance inst = toRemoveList[0];
+                inst.RemoveEffects();
+                inst.OnDestroy();
+                toRemoveList.RemoveAt(0);
+            }
+
+            if (!changed)
+            {
+                break;
+            }
+
         }
+
+        UpdateProperty();
+    }
+
+    
+    public void OnTurnFinish()
+    {
+
+        for (int i = ModifierList.Count-1; i >= 0; i--)
+        {
+            ModifierInstance modifier = ModifierList[i];
+
+            modifier.OnTurnEnd();
+
+            modifier.Duration -= 1;
+            if (modifier.Duration <= 0)
+            {
+                modifier.isRemoved = true;
+                toRemoveList.Add(modifier);
+            }
+        }
+
+        //for(int i=0;i< toRemoveList.Count; i++)
+        //{
+        //    ModifierList.Remove(toRemoveList[i]);
+        //}
     }
 
     public void OnTurnBegin()
@@ -412,17 +580,20 @@ public class BaseUnit : MonoBehaviour
 public class ModifierInstance
 {
     public int InstId;
+    public BaseUnit owner;
     public ModifierConfig Config;
     public int Duration;
     public int StackCount;
     public bool isFromAura;
 
-
+    public bool needDestroy = false;
+    public bool isRemoved = false;
 
     //public List<ModifierEffectInstance> Effects = new List<ModifierEffectInstance>();
 
-    public ModifierInstance(ModifierConfig config)
+    public ModifierInstance(BaseUnit owner, ModifierConfig config)
     {
+        this.owner = owner;
         this.Config = config;
         InstId = 100;
     }
@@ -434,7 +605,25 @@ public class ModifierInstance
 
     public virtual void OnDestroy()
     {
+        if(Config.ModifierName == "big atk")
+        {
+            owner.RemoveModifier("small atk");
+        }
+    }
 
+
+    public void RemoveEffects()
+    {
+        List<ModifierEffect> effects = Config.ModifierEffects;
+        for (int i = 0; i < effects.Count; i++)
+        {
+            UnitProperty toMod = owner.FindProperty(effects[i].propertyName);
+            if (toMod == null)
+            {
+                continue;
+            }
+            toMod.RemoveExtraValue(InstId);
+        }
     }
 
     public virtual void OnTurnBegin()

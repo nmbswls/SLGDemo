@@ -63,6 +63,21 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
 
     }
 
+
+
+    public void LoadGrid()
+    {
+        //绘制地图
+        int lineMax = 20;
+        for(int i = 0; i < lineMax; i++)
+        {
+            for(int left = 0; left < 20;left++)
+            {
+
+            }
+        }
+    }
+
     private void Update()
     {
 
@@ -90,7 +105,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         }
     }
 
-    public void ShowPath(List<Vector2Int> path)
+    public void ShowPathPots(List<Vector2Int> path)
     {
         if(path == null)
         {
@@ -114,6 +129,12 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
             pathViewList[i].SetActive(false);
         }
     }
+
+    public void HidePathSpot(int idx)
+    {
+        pathViewList[idx].gameObject.SetActive(false);
+    }
+
     public void ShowPath(List<Vector3> path, int outRangeIdx)
     {
         if (path == null)
