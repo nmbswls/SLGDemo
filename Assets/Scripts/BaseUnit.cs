@@ -289,11 +289,6 @@ public class BaseUnit : MonoBehaviour
     #endregion
 
 
-
-
-
-
-
     public void Tick(float dTime)
     {
         UpdateProperty();
@@ -398,118 +393,35 @@ public class BaseUnit : MonoBehaviour
             }
             toMod.AddExtraValue(modifier.InstId, effects[i]);
         }
+        modifier.OnCreate();
         UpdateProperty();
     }
 
 
 
     private bool isDoingRemove = false;
-    private bool isDoingAdd = false;
     List<ModifierInstance> toRemoveList = new List<ModifierInstance>();
-    List<ModifierInstance> toAddList = new List<ModifierInstance>();
 
     public void RemoveAllModifier()
     {
-        //List<ModifierInstance>
         for (int i = ModifierList.Count - 1; i >= 0; i--)
         {
-            //toRemove = ModifierList[i];
-            toRemoveList.Add(ModifierList[i]);
-            ModifierList[i].isRemoved = true;
-            ModifierList.RemoveAt(i);
+            //toRemoveList.Add(ModifierList[i]);
+            //ModifierList[i].isRemoved = true;
+            //ModifierList.RemoveAt(i);
+            ModifierList[i].needDestroy = true;
         }
 
         if (!isDoingRemove)
         {
             DoHandleRemoveList();
         }
-
-        //while (toRemoveList.Count > 0)
-        //{
-        //    ModifierInstance inst = toRemoveList[0];
-        //    inst.RemoveEffects();
-        //    inst.OnDestroy();
-        //    toRemoveList.RemoveAt(0);
-        //}
         
     }
 
     public void DoHandleRemoveList()
     {
         isDoingRemove = true;
-        while (toRemoveList.Count > 0)
-        {
-            ModifierInstance inst = toRemoveList[0];
-            inst.RemoveEffects();
-            inst.OnDestroy();
-            toRemoveList.RemoveAt(0);
-        }
-        UpdateProperty();
-        isDoingRemove = false;
-    }
-
-    public void RemoveModifier(string name)
-    {
-
-        ModifierInstance toRemove;
-        for (int i = ModifierList.Count - 1; i >= 0; i--)
-        {
-            if (ModifierList[i].Config.ModifierName == name)
-            {
-                if (ModifierList[i].isRemoved)
-                {
-                    continue;
-                }
-                toRemove = ModifierList[i];
-                toRemove.isRemoved = true;
-                toRemoveList.Add(toRemove);
-                ModifierList.RemoveAt(i);
-            }
-        }
-
-        if (!isDoingRemove)
-        {
-            DoHandleRemoveList();
-
-        }
-
-        //destoy flag while while1 while2
-    }
-
-    #endregion
-
-    public void DestroyModifer()
-    {
-        for (int i = ModifierList.Count - 1; i >= 0; i--)
-        {
-            if (ModifierList[i].Config.ModifierName == name)
-            {
-                if (ModifierList[i].isRemoved)
-                {
-                    continue;
-                }
-                ModifierList[i].needDestroy = true;
-            }
-        }
-    }
-
-
-    //入口 移除 回合结束
-    public void TestDestroy()
-    {
-        for (int i = 0; i <= ModifierList.Count; i--)
-        {
-            ModifierInstance modifier = ModifierList[i];
-
-            modifier.OnTurnEnd();
-
-            modifier.Duration -= 1;
-            if (modifier.Duration <= 0)
-            {
-                modifier.needDestroy = true;
-            }
-        }
-
         while (true)
         {
             bool changed = false;
@@ -524,7 +436,7 @@ public class BaseUnit : MonoBehaviour
                 }
             }
 
-            while(toRemoveList.Count > 0)
+            while (toRemoveList.Count > 0)
             {
                 ModifierInstance inst = toRemoveList[0];
                 inst.RemoveEffects();
@@ -538,15 +450,45 @@ public class BaseUnit : MonoBehaviour
             }
 
         }
-
         UpdateProperty();
+        isDoingRemove = false;
     }
 
-    
+    public void RemoveModifier(string name)
+    {
+
+        for (int i = ModifierList.Count - 1; i >= 0; i--)
+        {
+            if (ModifierList[i].Config.ModifierName == name)
+            {
+
+                ModifierList[i].needDestroy = true;
+                //toRemove = ModifierList[i];
+                //toRemove.isRemoved = true;
+                //toRemoveList.Add(toRemove);
+                //ModifierList.RemoveAt(i);
+            }
+        }
+
+        if (!isDoingRemove)
+        {
+            DoHandleRemoveList();
+
+        }
+
+        //destoy flag while while1 while2
+    }
+
+    #endregion
+
+
+    //入口 移除 回合结束
+   
+
     public void OnTurnFinish()
     {
 
-        for (int i = ModifierList.Count-1; i >= 0; i--)
+        for (int i = 0; i <= ModifierList.Count; i--)
         {
             ModifierInstance modifier = ModifierList[i];
 
@@ -555,15 +497,14 @@ public class BaseUnit : MonoBehaviour
             modifier.Duration -= 1;
             if (modifier.Duration <= 0)
             {
-                modifier.isRemoved = true;
-                toRemoveList.Add(modifier);
+                modifier.needDestroy = true;
             }
         }
 
-        //for(int i=0;i< toRemoveList.Count; i++)
-        //{
-        //    ModifierList.Remove(toRemoveList[i]);
-        //}
+        if (!isDoingRemove)
+        {
+            DoHandleRemoveList();
+        }
     }
 
     public void OnTurnBegin()
