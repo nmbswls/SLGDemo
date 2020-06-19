@@ -189,8 +189,10 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         {
             _worldPos = Position;
         }
+        public object extraData;
     }
 
+    
     //创建网格,起始点在左下角
     private void CreateGrid()
     {
@@ -266,8 +268,12 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
             lineMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             // Turn off depth writes
             lineMaterial.SetInt("_ZWrite", 0);
+            lineMaterial.SetInt("_ZTest", 1);
         }
     }
+    //OnRenderObject
+    //OnPreRender
+    //OnPostRender
     void OnRenderObject()
     {
         if (grid == null)

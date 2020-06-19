@@ -95,6 +95,45 @@ public class BattleManager : MonoBehaviour
         ProjectileManager.Instance.Tick(Time.deltaTime);
     }
 
+    #region dixing
+
+    public class GridExtraData
+    {
+        public List<int> EnvEffectList = new List<int>();
+        //是否可叠加
+    }
+
+    //public GridExtraData GetGridExtraData<T>(int x, int y)
+    //{
+        
+    //    return grid[x, y].extraData;
+    //}
+
+
+    public void AddEnvEffect(int type, Vector2 center, float range)
+    {
+
+        int xs = (int)(center.x - range);
+        int xe = (int)(center.x + range);
+
+        int ys = (int)(center.x - range);
+        int ye = (int)(center.y + range);
+
+        for (int x = xs; x <= xe; x++)
+        {
+            for(int y = ys; y<= ye; y++)
+            {
+                Vector2 c = new Vector2(x + 0.5f, y+0.5f);
+                if((center - c).magnitude <= range)
+                {
+                    //grid1.grid
+                }
+            }
+        }
+    }
+
+    #endregion
+
 
     public bool HandleStartAttack()
     {

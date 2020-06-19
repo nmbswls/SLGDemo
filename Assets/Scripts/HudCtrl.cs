@@ -28,6 +28,9 @@ public class HudCtrl : MonoBehaviour
     public Button DebugBtn2;
     public Button DebugBtn3;
 
+    public Button RotLeftBtn;
+    public Button RotRightBtn;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -53,6 +56,9 @@ public class HudCtrl : MonoBehaviour
         DebugBtn1 = transform.Find("TestBtn1").GetComponent<Button>();
         DebugBtn2 = transform.Find("TestBtn2").GetComponent<Button>();
         DebugBtn3 = transform.Find("TestBtn3").GetComponent<Button>();
+
+        RotLeftBtn = transform.Find("RotLeft").GetComponent<Button>();
+        RotRightBtn = transform.Find("RotRight").GetComponent<Button>();
 
         ActorContainer = transform.Find("TurnActors");
         for(int i = 0; i < 3; i++)
@@ -104,7 +110,14 @@ public class HudCtrl : MonoBehaviour
             UpdateInfo();
         });
 
-
+        RotLeftBtn.onClick.AddListener(delegate ()
+        {
+            BattleManager.Instance.cameraCtrl.RotPrev45();
+        });
+        RotRightBtn.onClick.AddListener(delegate ()
+        {
+            BattleManager.Instance.cameraCtrl.RotNext45();
+        });
 
     }
     private bool isAttacking = false;
