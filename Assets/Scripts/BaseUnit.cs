@@ -488,7 +488,7 @@ public class BaseUnit : MonoBehaviour
     public void OnTurnFinish()
     {
 
-        for (int i = 0; i <= ModifierList.Count; i--)
+        for (int i = 0; i < ModifierList.Count; i--)
         {
             ModifierInstance modifier = ModifierList[i];
 

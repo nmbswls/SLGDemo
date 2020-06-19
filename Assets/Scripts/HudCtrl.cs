@@ -7,6 +7,10 @@ using UnityEngine.UI;
 public class HudCtrl : MonoBehaviour
 {
 
+    public GameObject HeadProfilePrefab;
+
+    public Transform ActorContainer;
+
     public Button AttackBtn;
     public Button NextTurnBtn;
     public Button MoveBtn;
@@ -49,6 +53,12 @@ public class HudCtrl : MonoBehaviour
         DebugBtn1 = transform.Find("TestBtn1").GetComponent<Button>();
         DebugBtn2 = transform.Find("TestBtn2").GetComponent<Button>();
         DebugBtn3 = transform.Find("TestBtn3").GetComponent<Button>();
+
+        ActorContainer = transform.Find("TurnActors");
+        for(int i = 0; i < 3; i++)
+        {
+            GameObject go = GameObject.Instantiate(HeadProfilePrefab, ActorContainer);
+        }
 
         AttackBtn.onClick.AddListener(delegate()
         {

@@ -5,25 +5,30 @@ using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public interface SceneClickableActor
+public delegate void SimpleSceneEventProxy(GameObject go, Vector3 pos);
+public delegate void SceneEventProxy(SceneClickData data);
+public delegate void SceneSimpleDragProxy(Vector2 delta);
+
+public interface ISceneClickable
 {
 	void onClick(SceneClickData data);
 
 	void onRightClick(SceneClickData data);
-
-
-	void onDrag(Vector3 posInScreenView);
-
-	void startDrag(Vector3 posDeltaInScreenView);
-
-	void endDrag(Vector3 posInScreenView);
-
 
 	void onLongClick(Vector3 posInScreenView);
 
 	bool hasClickEvent();
 
 	bool hasLongClickEvent();
+}
+
+public interface ISceneDragble
+{
+	void onDrag(Vector3 posInScreenView);
+
+	void startDrag(Vector3 posDeltaInScreenView);
+
+	void endDrag(Vector3 posInScreenView);
 }
 
 public struct SceneClickData
@@ -44,15 +49,31 @@ public class InputManager : MonoBehaviour
 		Continue,
 	}
 
+	#region quanjudrag
+
+	private event SceneSimpleDragProxy GlobalDragEvent;
+
+	public void AddGlobalDragCB(SceneSimpleDragProxy cb)
+	{
+		GlobalDragEvent += cb;
+	}
+
+	public void RemoveGlobalDragCB(SceneSimpleDragProxy cb)
+	{
+		GlobalDragEvent -= cb;
+	}
+	#endregion
+
+
+
 	public static eSceneEventResult FieldEventResult;
 
 	private Camera mCamera;
 	
 
 	public static eSceneEventResult s_EventResult;
-	public Camera m_camera;
 
-	public static void BindClickEvent(GameObject target, SceneClickable.SceneEventProxy Func)
+	public static void BindClickEvent(GameObject target, SceneEventProxy Func)
 	{
 		SceneClickable listener = target.GetComponent<SceneClickable>();
 		if (listener == null)
@@ -79,6 +100,7 @@ public class InputManager : MonoBehaviour
 	//鼠标按下位置 屏幕坐标系
 	private Vector3 mMouseDownPos;
 
+	bool longClickTriggered;
 	float mMouseDownTime;
 	//上次拖拽时位置
 	Vector3 lastDragPos;
@@ -135,11 +157,17 @@ public class InputManager : MonoBehaviour
 
 		Ray ray = mCamera.ScreenPointToRay(Input.mousePosition);
 		RaycastHit[] hits = Physics.RaycastAll(ray, Mathf.Infinity);
+
+		mMouseDownPos = Input.mousePosition;
+		mMouseDownTime = Time.time;
+		nowMode = MouseState.CLICK;
+
+		longClickTriggered = false;
+
+		nowClickedList = new List<SceneClickData>();
+
 		if (hits.Length > 1){
-			mMouseDownPos = Input.mousePosition;
-			mMouseDownTime = Time.time;
-			nowClickedList = new List<SceneClickData>();
-			
+
 			for(int i = 0; i < hits.Length; i++)
 			{
 				SceneClickData newWrap = new SceneClickData();
@@ -149,36 +177,27 @@ public class InputManager : MonoBehaviour
 				newWrap.PosInScreen = Input.mousePosition;
 				nowClickedList.Add(newWrap);
 			}
-			//List<RaycastHit> hitsList = new List<RaycastHit>(hits);
-
 
 			//从前往后排序
 			nowClickedList.Sort((x, y) => {
 				return x.Distance.CompareTo(y.Distance);
 			});
-			
-			nowMode = MouseState.CLICK;
 		}
 		else if (hits.Length > 0)
 		{
-			mMouseDownPos = Input.mousePosition;
-			mMouseDownTime = Time.time;
-			nowClickedList = new List<SceneClickData>();
-
+			
 			SceneClickData newWrap = new SceneClickData();
 			newWrap.Go = hits[0].collider.gameObject;
 			newWrap.Distance = hits[0].distance;
 			newWrap.PosInWorld = hits[0].point;
 			newWrap.PosInScreen = Input.mousePosition;
 			nowClickedList.Add(newWrap);
-
-			nowMode = MouseState.CLICK;
 		}
 	}
 
 	private void CheckClicking()
 	{
-		if (!Input.GetMouseButtonDown(0) && !((Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Moved)))
+		if (!Input.GetMouseButton(0) && !((Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Moved)))
 		{
 			return;
 		}
@@ -186,19 +205,21 @@ public class InputManager : MonoBehaviour
 		{
 			return;
 		}
+
+		
 		Vector3 nowPos = Input.mousePosition;
 		Vector2 mouseMove = (nowPos - mMouseDownPos);
 		if (nowMode == MouseState.CLICK){
-
-			if(Time.time - mMouseDownTime > longClickThreshold)
+			
+			if (!longClickTriggered && Time.time - mMouseDownTime > longClickThreshold)
 			{
-				nowMode = MouseState.LONGCLICK;
-				//触发回调
+				longClickTriggered = true;
+				//当任意原因无法触发回调时，不转化为长按点击
 				if (nowClickedList == null || nowClickedList.Count == 0)
 				{
 					return;
 				}
-				SceneClickableActor cp = nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>();
+				ISceneClickable cp = nowClickedList[0].Go.GetComponentInParent<ISceneClickable>();
 				if(cp == null)
 				{
 					return;
@@ -206,34 +227,40 @@ public class InputManager : MonoBehaviour
 
 				if (!cp.hasLongClickEvent())
 				{
-					//目标没有长按事件 退化为普通点击
-					nowMode = MouseState.CLICK;
-					mMouseDownTime = Time.time;
-				}
-				else
-				{
-					nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>().onLongClick(Input.mousePosition);
 					return;
 				}
+				nowClickedList[0].Go.GetComponentInParent<ISceneClickable>().onLongClick(Input.mousePosition);
+				nowMode = MouseState.LONGCLICK;
+				return;
 			}
 			//超过阀值 将变为拖动
 			if (mouseMove.magnitude < dragThreshold)
 				return;
+
+			Debug.Log("switch to drag");
+			
 			nowMode = MouseState.DRAG;
 			lastDragPos = nowPos;
 
-			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>() == null)
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<ISceneDragble>() == null)
 				return;
-
 			//拖拽事件不能传递
-			nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>().startDrag(lastDragPos);
+			nowClickedList[0].Go.GetComponentInParent<ISceneDragble>().startDrag(lastDragPos);
 		}else if (nowMode == MouseState.DRAG){
 			Vector3 delta = nowPos - lastDragPos;
 			lastDragPos = nowPos;
-			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>() == null)
+
+
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<ISceneDragble>() == null)
+			{
+				if (GlobalDragEvent != null)
+				{
+					GlobalDragEvent(delta);
+				}
 				return;
+			}
 			//拖拽事件不能传递
-			nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>().onDrag(delta);
+			nowClickedList[0].Go.GetComponentInParent<ISceneDragble>().onDrag(delta);
 		}
 	}
 
@@ -254,15 +281,14 @@ public class InputManager : MonoBehaviour
 		
 		if (nowMode == MouseState.CLICK)
 		{
-			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>() == null)
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<ISceneClickable>() == null)
 			{
 				nowMode = MouseState.NONE;
 				return;
 			}
-			
 			for (int i = 0; i < nowClickedList.Count; i++)
 			{
-				SceneClickableActor cp = nowClickedList[i].Go.GetComponentInParent<SceneClickableActor>();
+				ISceneClickable cp = nowClickedList[i].Go.GetComponentInParent<ISceneClickable>();
 				if (cp == null || !cp.hasClickEvent())
 				{
 					continue;
@@ -280,12 +306,12 @@ public class InputManager : MonoBehaviour
 		}
 		else if (nowMode == MouseState.DRAG)
 		{
-			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>() == null)
+			if (nowClickedList == null || nowClickedList.Count == 0 || nowClickedList[0].Go.GetComponentInParent<ISceneDragble>() == null)
 			{
 				nowMode = MouseState.NONE;
 				return;
 			}
-			nowClickedList[0].Go.GetComponentInParent<SceneClickableActor>().endDrag(Input.mousePosition);
+			nowClickedList[0].Go.GetComponentInParent<ISceneDragble>().endDrag(Input.mousePosition);
 		}
 		nowMode = MouseState.NONE;
 	}

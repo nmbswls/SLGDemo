@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SceneClickable : MonoBehaviour, SceneClickableActor
+
+
+public class SceneClickable : MonoBehaviour, ISceneClickable
 {
 	// 定义事件代理
 
-	public delegate void SimpleSceneEventProxy(GameObject go, Vector3 pos);
-	public delegate void SceneEventProxy(SceneClickData data);
+	
 
 	// 鼠标点击事件
 	public event SceneEventProxy ClickEvent;

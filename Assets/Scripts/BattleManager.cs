@@ -30,6 +30,9 @@ public class BattleManager : MonoBehaviour
 
     private SceneClickable gridListener;
 
+    //各种manager
+    public CameraCtrl cameraCtrl;
+    public InputManager mInputMgr;
     public HudCtrl hudCtrl;
     public RangeIndicator mRangeIndicator;
     //public List<FakeActor> fakeActors = new List<FakeActor>();
@@ -63,12 +66,21 @@ public class BattleManager : MonoBehaviour
 
         mRangeIndicator = go.GetComponent<RangeIndicator>();
         mRangeIndicator.Init();
+
+
+        mInputMgr.AddGlobalDragCB(OnScreenMove);
+    }
+
+    public void OnScreenMove(Vector2 delta)
+    {
+        cameraCtrl.OnDragScreen(delta);
     }
 
     private void OnDestroy()
     {
         //unregister
         gridListener.ClickEvent -= OnGridClick;
+        mInputMgr.RemoveGlobalDragCB(OnScreenMove);
     }
 
 
@@ -150,6 +162,7 @@ public class BattleManager : MonoBehaviour
                     Debug.Log("show info");
                 }
                 hudCtrl.ShowInfo(target);
+                cameraCtrl.LookTo(target.transform);
                 break;
             case eMouseState.ChoosePoint:
                 {
