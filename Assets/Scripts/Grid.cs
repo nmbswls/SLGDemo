@@ -268,7 +268,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
             lineMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
             // Turn off depth writes
             lineMaterial.SetInt("_ZWrite", 0);
-            lineMaterial.SetInt("_ZTest", 1);
+            //lineMaterial.SetInt("_ZTest", 1);
         }
     }
     //OnRenderObject
