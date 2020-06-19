@@ -5,7 +5,7 @@ using UnityEngine;
 public class CameraCtrl : MonoBehaviour
 {
 
-    public static float RotSpeed = 180f;
+    public static float RotSpeed = 270f;
     public bool IsLockToTarget
     {
         get { return LockTarget != null; }
@@ -14,8 +14,8 @@ public class CameraCtrl : MonoBehaviour
 
     public Vector3 targetPos;
 
-    private float _offset = -10f;
-    private float _defHeight = 10f;
+    private float _offset = -5f;
+    private float _defHeight = 5f;
     private float _roll = 45;
     private float Rotation = 0;
 
@@ -117,7 +117,7 @@ public class CameraCtrl : MonoBehaviour
         Vector3 forward = mainCamera.transform.forward;
         forward.y = 0;
         forward.Normalize();
-        RotOffset = forward * -10f + Vector3.up * 10f;
+        RotOffset = forward * _offset + Vector3.up * _defHeight;
     }
 
     private void Update()
