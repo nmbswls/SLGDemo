@@ -5,7 +5,7 @@ using UnityEngine;
 public class CameraCtrl : MonoBehaviour
 {
 
-    public static float RotSpeed = 360f;
+    public static float RotSpeed = 180f;
     public bool IsLockToTarget
     {
         get { return LockTarget != null; }
@@ -29,7 +29,7 @@ public class CameraCtrl : MonoBehaviour
     {
         mainCamera = Camera.main;
         mainCamera.transform.localEulerAngles = new Vector3(_roll, 0, 0);
-        RotOffset = mainCamera.transform.forward * _offset;
+        CalcOffset();
     }
 
     public void SetOffset(float offset)
@@ -108,10 +108,30 @@ public class CameraCtrl : MonoBehaviour
         }
         _tmprot = (_tmprot + 360) % 360;
         mainCamera.transform.localEulerAngles = new Vector3(_roll, _tmprot, 0);
-        //RotOffset = mainCamera.transform.forward * _offset;
+
+        CalcOffset();
     }
 
+    public void CalcOffset()
+    {
+        Vector3 forward = mainCamera.transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+        RotOffset = forward * -10f + Vector3.up * 10f;
+    }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            RotPrev45();
+        }
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            RotNext45();
+        }
+        UpdateRotOffset();
+    }
     // Update is called once per frame
     void LateUpdate()
     {
@@ -125,17 +145,11 @@ public class CameraCtrl : MonoBehaviour
         {
             basePosition = Vector3.Lerp(basePosition, targetPos, 0.3f);
             mainCamera.transform.position = basePosition + RotOffset;
+            //mainCamera.transform.position = Vector3.Lerp(mainCamera.transform.position, targetPos + RotOffset,0.4f);
             //mainCamera.transform.position = Vector3.Lerp(mainCamera.transform.position, targetPos + new Vector3(0, _defHeight, _offset) + RotOffset, 0.3f);
         }
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            RotPrev45();
-        }
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            RotNext45();
-        }
-        UpdateRotOffset();
+        
+        
     }
 
     public void LookTo(Transform target)
