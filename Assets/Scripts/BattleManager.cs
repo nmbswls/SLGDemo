@@ -42,7 +42,7 @@ public class BattleManager : MonoBehaviour
     //    public int speed;
     //}
 
-
+    public AchieveMgr achvMgr = new AchieveMgr();
     // Start is called before the first frame update
     void Start()
     {
@@ -69,6 +69,9 @@ public class BattleManager : MonoBehaviour
 
 
         mInputMgr.AddGlobalDragCB(OnScreenMove);
+
+        //test achv
+        achvMgr.Start();
     }
 
     public void OnScreenMove(Vector2 delta)
