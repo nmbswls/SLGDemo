@@ -90,6 +90,13 @@ public class UnitConfig
     public Vector3 ActPoint;
 
     public Int64[] PropertyArray = new Int64[(int)ePropertyName.Max];
+
+
+    public UnitConfig()
+    {
+        PropertyArray[(int)ePropertyName.MaxHp] = 1000;
+        PropertyArray[(int)ePropertyName.MAtk] = 1000;
+    }
 }
 public class BaseUnit : MonoBehaviour
 {
@@ -153,18 +160,31 @@ public class BaseUnit : MonoBehaviour
 
     #region property
 
-    public int tmpAtk = 120;
-    public int tmpDef = 222;
+    public float hp = 500;
+    public float mp = 222;
 
     public UnitProperty[] PropertyArray;
 
     public void InitProperty()
     {
         UnitPropertyFactroy.Init(this);
+        for (int i = 0; i < PropertyArray.Length; i++)
+        {
+            if (PropertyArray[i] == null)
+            {
+                continue;
+            }
+            PropertyArray[i].dirty = true;
+        }
+        UpdateProperty(true);
     }
-    public void UpdateProperty()
+
+
+    public void UpdateProperty(bool first = false)
     {
         int cnt = 0;
+
+        List<ePropertyName> changedProperty = new List<ePropertyName>();
         while (true)
         {
             bool changed = false;
@@ -180,21 +200,32 @@ public class BaseUnit : MonoBehaviour
                     continue;
                 }
                 changed = true;
+
+
+                if (!changedProperty.Contains(PropertyArray[i].Config.name))
+                {
+                    PropertyArray[i].SavePrevValue();
+                    changedProperty.Add(PropertyArray[i].Config.name);
+                }
+
+
                 PropertyArray[i].CalcBase();
                 PropertyArray[i].CalcTotal();
-
-                Debug.Log("calc " + i);
 
                 List<int> mayChange = UnitPropertyFactroy.GetTrigger(i);
                 if (mayChange != null)
                 {
                     for (int j = 0; j < mayChange.Count; j++)
                     {
-                        Debug.Log("may change "+mayChange[j]);
+                        //Debug.Log("may change "+mayChange[j]);
                         PropertyArray[mayChange[j]].dirty = true;
                     }
                 }
+                
+                
                 PropertyArray[i].dirty = false;
+
+
             }
             if (!changed)
             {
@@ -207,8 +238,33 @@ public class BaseUnit : MonoBehaviour
                 break;
             }
         }
-        
+        if (!first)
+        {
+            OnPropertyUpdate(changedProperty);
+        }
     }
+
+    
+
+    public void OnPropertyUpdate(List<ePropertyName> changed)
+    {
+        for(int i = 0; i < changed.Count; i++)
+        {
+            if(changed[i] == ePropertyName.MAtk)
+            {
+                Int64 diff = PropertyArray[(int)ePropertyName.MAtk].FinalValue - PropertyArray[(int)ePropertyName.MAtk].PrevFinalValue;
+                Debug.Log("diff" + diff);
+                //float rate = PropertyArray[(int)ePropertyName.MaxHp].FinalValue * 1.0f / PropertyArray[(int)ePropertyName.MaxHp].PrevFinalValue;
+                hp += diff;
+                if (hp <= 0)
+                {
+                    hp = 1;
+                }
+                //hp = 10;
+            }
+        }
+    }
+
     public UnitProperty FindProperty(ePropertyName name)
     {
         if (name >= ePropertyName.Max)

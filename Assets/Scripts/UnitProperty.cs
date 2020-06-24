@@ -58,6 +58,7 @@ public class UnitProperty
 
     //public bool isLua = false;
     public Int64 FinalValue;
+    public Int64 PrevFinalValue;
     //public int calcMode; //1 add 2 multi 3 or
 
     public UnitProperty(BaseUnit owner, UnitPropertyConfig config)
@@ -110,6 +111,10 @@ public class UnitProperty
         return;
     }
 
+    public void SavePrevValue()
+    {
+        PrevFinalValue = FinalValue;
+    }
 
 }
 

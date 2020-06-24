@@ -94,7 +94,7 @@ public class InputManager : MonoBehaviour
 		CheckClickUp();
 	}
 	//拖拽阈值
-	public static float dragThreshold = 0.1f;
+	public static float dragThreshold = 0.3f;
 	public static float longClickThreshold = 0.7f;
 
 	//鼠标按下位置 屏幕坐标系

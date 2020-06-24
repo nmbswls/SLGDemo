@@ -92,7 +92,7 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         }
     }
 
-
+    public GameObject targetMark;
     GameObject[] pathViewList = new GameObject[120];
     public GameObject pathNodeViewPrefab;
     private void InitPathPot()
@@ -133,16 +133,23 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
     public void HidePathSpot(int idx)
     {
         pathViewList[idx].gameObject.SetActive(false);
+        targetMark.SetActive(false);
     }
 
-    public void ShowPath(List<Vector3> path, int outRangeIdx)
+    public void ShowPath(List<Vector3> path, int outRangeIdx, Vector2Int clickTargetPos)
     {
+
+
+
         if (path == null)
         {
             for (int i = 0; i < pathViewList.Length; i++)
             {
                 pathViewList[i].SetActive(false);
             }
+            targetMark.transform.position = grid[clickTargetPos.x, clickTargetPos.y]._worldPos;
+            targetMark.SetActive(true);
+
             return;
         }
 
@@ -165,6 +172,11 @@ public class Grid : MonoBehaviour, IGrid_PathSearch
         {
             pathViewList[i].SetActive(false);
         }
+
+
+        targetMark.transform.position = grid[clickTargetPos.x, clickTargetPos.y]._worldPos;
+        targetMark.SetActive(true);
+
     }
 
     public Vector2Int GetCenter()
@@ -565,14 +577,14 @@ public class PathSearcher
         {
             if (!FindPathJPS(from))
             {
-                return null;
+                //return null;
             }
         }
         else
         {
             if (!FindPathAstar(from))
             {
-                return null;
+                //return null;
             }
         }
         
@@ -606,10 +618,12 @@ public class PathSearcher
 
         bool found = false;
         PathSearchNode endNode = null;
+        PathSearchNode nearestNode = null;
 
         PathSearchNode startNode = new PathSearchNode();
         startNode.x = from.x;
         startNode.y = from.y;
+        startNode.h = owner.getH(from, targetPos);
         openList.Add(startNode);
         openSet.Add(pos2key(from.x, from.y), startNode);
 
@@ -617,6 +631,11 @@ public class PathSearcher
         while (openList.Count > 0)
         {
             pNode = openList.RemoveFirst();
+
+            if(nearestNode == null || pNode.h < nearestNode.h)
+            {
+                nearestNode = pNode;
+            }
 
             Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
             if (pNode.x == targetPos.x && pNode.y == targetPos.y)
@@ -632,6 +651,8 @@ public class PathSearcher
             //    continue;
             //}
             
+
+
 
             if (pNode.depth > maxPathLen)
             {
@@ -690,18 +711,24 @@ public class PathSearcher
             closeSet.Add(pos2key(pNode.x, pNode.y));
         }
 
+        PathSearchNode p;
+
         if (!found)
         {
-            return false;
+            p = nearestNode;
         }
-        PathSearchNode p = endNode;
+        else
+        {
+            p = endNode;
+        }
         int pathLen = p.depth + 1;
         while (p != null)
         {
             pathNodes.Insert(0, new Vector2Int(p.x, p.y));
             p = p.previous;
         }
-        return true;
+
+        return found;
     }
 
     
@@ -718,12 +745,14 @@ public class PathSearcher
         PathSearchNode startNode = new PathSearchNode();
         startNode.x = from.x;
         startNode.y = from.y;
-
+        startNode.h = owner.getH(from, targetPos);
         openList.Add(startNode);
         openSet.Add(pos2key(from.x, from.y), startNode);
 
         bool found = false;
         PathSearchNode endNode = null;
+
+        PathSearchNode nearestNode = null;
 
         while (openList.Count > 0)
         {
@@ -732,6 +761,10 @@ public class PathSearcher
             Vector2Int pNodePos = new Vector2Int(pNode.x, pNode.y);
             //Debug.Log(pNodePos);
 
+            if (nearestNode == null || pNode.h < nearestNode.h)
+            {
+                nearestNode = pNode;
+            }
 
             if (pNode.x == targetPos.x && pNode.y == targetPos.y)
             {
@@ -740,7 +773,7 @@ public class PathSearcher
                 break;
             }
 
-            if (pNode.depth > maxPathLen)
+            if (pNode.depth > 20)
             {
                 continue;
             }
@@ -794,18 +827,25 @@ public class PathSearcher
             }
 
         }
+
+        PathSearchNode p;
+
         if (!found)
         {
-            return false;
+            p = nearestNode;
         }
-        PathSearchNode p = endNode;
+        else
+        {
+            p = endNode;
+        }
         int pathLen = p.depth + 1;
         while (p != null)
         {
             pathNodes.Insert(0, new Vector2Int(p.x, p.y));
             p = p.previous;
         }
-        return true;
+
+        return found;
     }
 
     public static Vector2Int V2InValid = new Vector2Int(-1, -1);
@@ -1011,22 +1051,22 @@ public class PathSearcher
         }
 
         float deltay = 1.0f * ((p2.y - p1.y) / (p2.x - p1.x));
-        
-        float nowX = p1.x + 0.5f;
-        float nowY = p1.y + deltay / 2;
-        float lastY;
 
-        //for (int i = (int)start.y; i <= (int)nowY; i++)
-        //{
-        //    if (checkY((int)start.y, nowY, xInt - 1))
-        //    {
-        //        return true;
-        //    }
-        //}
+        //
+        float nowX = Mathf.Ceil(p1.x);
+        //float nowX = p1.x + 0.5f;
+        float nowY = p1.y + deltay * (nowX  - p1.x);
+        float lastY = nowY;
 
 
+        if (!checkYStripWalkable((int)p1.y, nowY, (int)p1.x,changexz))
+        {
+            return false;
+        }
 
-        while (nowX < p2.x)
+
+
+        while (nowX < (int)p2.x)
         {
             lastY = nowY;
             nowY += deltay;
@@ -1037,11 +1077,17 @@ public class PathSearcher
             nowX += 1;
         }
 
-        //for (int i = (int)lastY; i <= (int)end.y; i++)
+
+        if (!checkYStripWalkable(lastY, (int)p2.y, (int)nowX, changexz))
+        {
+            return false;
+        }
+
+        //for (int i = (int)lastY; i <= (int)p2.y; i++)
         //{
-        //    if (checkY(lastY, (int)end.y, xInt - 1))
+        //    if (!checkYStripWalkable(lastY, (int)p2.y, (int)nowX, changexz))
         //    {
-        //        return true;
+        //        return false;
         //    }
         //}
 

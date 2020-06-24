@@ -35,6 +35,8 @@ public class BattleManager : MonoBehaviour
     public InputManager mInputMgr;
     public HudCtrl hudCtrl;
     public RangeIndicator mRangeIndicator;
+
+
     //public List<FakeActor> fakeActors = new List<FakeActor>();
     //public class FakeActor 
     //{
@@ -93,7 +95,13 @@ public class BattleManager : MonoBehaviour
         TickAction();
         TickMove();
 
-        
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            QuestEventData testData = new QuestEventData();
+            testData.type = eEventType.Kill;
+
+            achvMgr.OnCheckTrigger(testData);
+        }
 
         ProjectileManager.Instance.Tick(Time.deltaTime);
     }
@@ -481,10 +489,8 @@ public class BattleManager : MonoBehaviour
 
     #endregion
 
-
-
     private List<Vector2Int> pathPreview;
-
+    private Vector2Int clickTargetPos;
     
     private void CalcPath(Vector2Int pos)
     {
@@ -498,17 +504,25 @@ public class BattleManager : MonoBehaviour
         }
         if(pathPreview != null)
         {
-            if(pos == pathPreview[pathPreview.Count - 1])
+            if(pos == clickTargetPos)
             {
                 ConfirmMove();
                 return;
             }
+            //if(pos == pathPreview[pathPreview.Count - 1])
+            //{
+            //    ConfirmMove();
+            //    return;
+            //}
         }
+
+        clickTargetPos = pos;
 
         pathPreview = grid1.FindPath(pawn.nowGridPos, pos);
 
         if (pathPreview == null)
         {
+            grid1.ShowPath(null, -1, clickTargetPos);
             return;
         }
 
@@ -519,7 +533,7 @@ public class BattleManager : MonoBehaviour
 
 
         //grid1.ShowPath(pathPreview);
-        grid1.ShowPath(previewPots, outRangeIdx);
+        grid1.ShowPath(previewPots, outRangeIdx, clickTargetPos);
     }
 
     public float getPathLengh(List<Vector2Int> path)

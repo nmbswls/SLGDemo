@@ -23,6 +23,7 @@ public class HudCtrl : MonoBehaviour
     public Text UnitAtkText;
     public Text UnitDefText;
     public Text UnitHpText;
+    public Text UnitMaxHpText;
 
     public Button DebugBtn1;
     public Button DebugBtn2;
@@ -52,6 +53,7 @@ public class HudCtrl : MonoBehaviour
         UnitAtkText = InfoPanel.Find("Atk_value").GetComponent<Text>();
         UnitDefText = InfoPanel.Find("Def_value").GetComponent<Text>();
         UnitHpText = InfoPanel.Find("Hp_value").GetComponent<Text>();
+        UnitMaxHpText = InfoPanel.Find("MaxHp_value").GetComponent<Text>();
 
         DebugBtn1 = transform.Find("TestBtn1").GetComponent<Button>();
         DebugBtn2 = transform.Find("TestBtn2").GetComponent<Button>();
@@ -141,9 +143,11 @@ public class HudCtrl : MonoBehaviour
         UnitName.text = target.name;
         Int64 v = target.GetFinalProperty((int)ePropertyName.MAtk);
         UnitAtkText.text = v + "";
-        UnitDefText.text = target.tmpDef + "";
+        //UnitDefText.text = target.tmpDef + "";
 
-        UnitHpText.text = target.GetFinalProperty((int)ePropertyName.MaxHp) + "";
+        UnitHpText.text = target.hp + "";
+
+        UnitMaxHpText.text = target.GetFinalProperty((int)ePropertyName.MaxHp) + "";
 
         if (!InfoPanel.gameObject.activeSelf)
         {

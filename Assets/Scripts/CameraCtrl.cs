@@ -178,7 +178,7 @@ public class CameraCtrl : MonoBehaviour
 
         targetPos += (forward + right);
 
-        Debug.Log(forward);
+        //Debug.Log(forward);
 
         //targetPos += new Vector3(-delta.x * 0.015f, 0 , -delta.y*0.018f);
     }
